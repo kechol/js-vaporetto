@@ -56,23 +56,10 @@ export class Vaporetto {
     tokenizeToString(text: string): string;
 }
 
-/**
- * Version of js-vaporetto itself. Used to generate the JS wrapper.
- */
-export function __jsVaporettoVersion(): string;
-
-/**
- * Version of the Vaporetto crate this was built against. Used to generate the
- * JS wrapper.
- */
-export function __vaporettoVersion(): string;
-
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
 
 export interface InitOutput {
     readonly memory: WebAssembly.Memory;
-    readonly __jsVaporettoVersion: () => [number, number];
-    readonly __vaporettoVersion: () => [number, number];
     readonly __wbg_vaporetto_free: (a: number, b: number) => void;
     readonly vaporetto_fromCompressedModel: (a: number, b: number, c: number) => [number, number, number];
     readonly vaporetto_fromKyteaModel: (a: number, b: number, c: number) => [number, number, number];
@@ -83,9 +70,9 @@ export interface InitOutput {
     readonly __wbindgen_malloc: (a: number, b: number) => number;
     readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
     readonly __wbindgen_externrefs: WebAssembly.Table;
-    readonly __wbindgen_free: (a: number, b: number, c: number) => void;
     readonly __externref_table_alloc: () => number;
     readonly __externref_table_dealloc: (a: number) => void;
+    readonly __wbindgen_free: (a: number, b: number, c: number) => void;
     readonly __wbindgen_start: () => void;
 }
 

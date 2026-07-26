@@ -363,8 +363,19 @@ so tokens may span a newline. This matches the official python-vaporetto.
 
 ### Errors and lifetime
 
-* Malformed model bytes throw a catchable `Error` — including an empty
-  `Uint8Array`. The wasm module stays usable afterwards.
+* Malformed model bytes throw, and the wasm module stays usable afterwards —
+  verified for empty, truncated and garbage buffers. One caveat: a
+  *deliberately crafted* buffer can make the upstream `vaporetto` crate panic
+  inside its deserializer, which surfaces as
+  `WebAssembly.RuntimeError: unreachable` rather than a descriptive message.
+  That is still an `Error` subclass and still catchable, and tokenizers created
+  before and after keep working — but do not depend on the message text, and
+  treat model files as trusted input.
+* `fromCompressedModel` refuses to decompress beyond 256 MiB, so a zstd bomb
+  fails fast with a clear error instead of exhausting memory. The largest
+  distributed model is ~56 MB uncompressed, well inside that.
+* `tokenizeBatch` requires a real array; anything else throws rather than
+  silently mis-tokenizing.
 * A NUL character in the input throws. An empty string returns `[]` / `""`.
 * Calling a method after `free()` throws `null pointer passed to rust` rather
   than crashing the module.

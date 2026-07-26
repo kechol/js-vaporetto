@@ -18,11 +18,13 @@ for (const { name, fn } of cases) {
 }
 
 // See the comment in node.test.mjs: `using` is syntax, so probe by importing
-// and skip rather than fail on engines without it.
+// and skip rather than fail on engines without it. Only swallow the
+// SyntaxError unsupported syntax produces, not an unrelated real failure.
 let usingModule = null;
 try {
   usingModule = await import("./using.mjs");
-} catch {
+} catch (e) {
+  if (!(e instanceof SyntaxError)) throw e;
   // engine does not support `using`
 }
 

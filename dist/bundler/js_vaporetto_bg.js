@@ -117,41 +117,6 @@ export class Vaporetto {
     }
 }
 if (Symbol.dispose) Vaporetto.prototype[Symbol.dispose] = Vaporetto.prototype.free;
-
-/**
- * Version of js-vaporetto itself. Used to generate the JS wrapper.
- * @returns {string}
- */
-export function __jsVaporettoVersion() {
-    let deferred1_0;
-    let deferred1_1;
-    try {
-        const ret = wasm.__jsVaporettoVersion();
-        deferred1_0 = ret[0];
-        deferred1_1 = ret[1];
-        return getStringFromWasm0(ret[0], ret[1]);
-    } finally {
-        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
-    }
-}
-
-/**
- * Version of the Vaporetto crate this was built against. Used to generate the
- * JS wrapper.
- * @returns {string}
- */
-export function __vaporettoVersion() {
-    let deferred1_0;
-    let deferred1_1;
-    try {
-        const ret = wasm.__vaporettoVersion();
-        deferred1_0 = ret[0];
-        deferred1_1 = ret[1];
-        return getStringFromWasm0(ret[0], ret[1]);
-    } finally {
-        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
-    }
-}
 export function __wbg_Error_92b29b0548f8b746(arg0, arg1) {
     const ret = Error(getStringFromWasm0(arg0, arg1));
     return ret;
@@ -239,6 +204,10 @@ export function __wbg_instanceof_Uint8Array_309b927aaf7a3fc7(arg0) {
         result = false;
     }
     const ret = result;
+    return ret;
+}
+export function __wbg_isArray_0677c962b281d01a(arg0) {
+    const ret = Array.isArray(arg0);
     return ret;
 }
 export function __wbg_length_1f0964f4a5e2c6d8(arg0) {

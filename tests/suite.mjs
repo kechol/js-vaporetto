@@ -333,6 +333,37 @@ export function createSuite({ Vaporetto, model, modelZst, vaporettoVersion, jsVa
 
     // --- batch ---------------------------------------------------------------
     {
+      // A bad argument used to be worse than a wrong answer: calling .length /
+      // .get on a value that throws on property access fails inside the
+      // wasm-bindgen borrow guard, which then never releases, so free() and
+      // every later call on that instance throw forever and the wasm memory
+      // leaks. The argument is type-checked before the guard can get stuck.
+      name: "tokenizeBatch rejects a non-array without breaking the instance",
+      fn: (t) =>
+        with_(undefined, (v) => {
+          for (const bad of ["a string", {}, null, undefined, 42, new Set(["a"])]) {
+            t.throws(() => v.tokenizeBatch(bad), /expects an array/, JSON.stringify(bad ?? String(bad)));
+            // the instance must survive every one of them
+            t.eq(v.tokenizeToString("青い空を鳥が飛ぶ"), "青い 空 を 鳥 が 飛ぶ");
+          }
+          // ...and still be freeable, which is what the borrow guard breaks
+          const throwaway = Vaporetto.fromModel(model);
+          t.throws(() => throwaway.tokenizeBatch(null), /expects an array/);
+          throwaway.free();
+          t.throws(() => throwaway.tokenize("あ"), /null pointer/);
+        }),
+    },
+
+    {
+      name: "tokenizeBatch rejects an array holding a non-string",
+      fn: (t) =>
+        with_(undefined, (v) => {
+          t.throws(() => v.tokenizeBatch(["ok", 1]), /array of strings/);
+          t.eq(v.tokenizeToString("青い空を鳥が飛ぶ"), "青い 空 を 鳥 が 飛ぶ");
+        }),
+    },
+
+    {
       name: "tokenizeBatch matches tokenize element by element",
       fn: (t) =>
         with_({ predictTags: true }, (v) => {

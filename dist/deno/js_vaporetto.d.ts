@@ -55,14 +55,3 @@ export class Vaporetto {
      */
     tokenizeToString(text: string): string;
 }
-
-/**
- * Version of js-vaporetto itself. Used to generate the JS wrapper.
- */
-export function __jsVaporettoVersion(): string;
-
-/**
- * Version of the Vaporetto crate this was built against. Used to generate the
- * JS wrapper.
- */
-export function __vaporettoVersion(): string;

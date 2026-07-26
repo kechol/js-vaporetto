@@ -18,11 +18,16 @@ for (const { name, fn } of cases) test(name, () => fn(asserts));
 // `using` is syntax, so an engine without explicit resource management fails to
 // parse the module rather than failing at the call. Probe by importing, and
 // skip rather than fail — Node only gained support in 24, and the library
-// itself works fine without it.
+// itself works fine without it. Only swallow the SyntaxError unsupported
+// syntax produces: a bare `catch {}` here would also swallow a real bug in
+// using.mjs (or in the suite it exercises) and silently report it as this
+// engine merely lacking `using` support, on every engine including ones that
+// do support it.
 let usingModule = null;
 try {
   usingModule = await import("./using.mjs");
-} catch {
+} catch (e) {
+  if (!(e instanceof SyntaxError)) throw e;
   // engine does not support `using`
 }
 

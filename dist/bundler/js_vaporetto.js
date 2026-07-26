@@ -5,5 +5,5 @@ import { __wbg_set_wasm } from "./js_vaporetto_bg.js";
 __wbg_set_wasm(wasm);
 wasm.__wbindgen_start();
 export {
-    Vaporetto, __jsVaporettoVersion, __vaporettoVersion
+    Vaporetto
 } from "./js_vaporetto_bg.js";

@@ -84,21 +84,12 @@ extern "C" {
 // is initialized asynchronously, so the values cannot be read from wasm at
 // module load time either. VAPORETTO_VERSION and JS_VAPORETTO_VERSION are
 // therefore defined as plain constants in the JS wrapper that scripts/build.sh
-// generates; these functions are what it reads them from.
+// generates, by grepping this crate's Cargo.toml directly at build time (see
+// the JS_VERSION/VAPORETTO_VERSION assignments near the top of build.sh) —
+// there used to be a pair of #[wasm_bindgen] functions here for build.sh to
+// call for the same values, but nothing ever called them from JS, and they
+// leaked into every consumer's public .d.ts as dead API surface. Removed.
 // -----------------------------------------------------------------------------
-
-/// Version of the Vaporetto crate this was built against. Used to generate the
-/// JS wrapper.
-#[wasm_bindgen(js_name = __vaporettoVersion)]
-pub fn vaporetto_version() -> String {
-    vaporetto::VERSION.to_string()
-}
-
-/// Version of js-vaporetto itself. Used to generate the JS wrapper.
-#[wasm_bindgen(js_name = __jsVaporettoVersion)]
-pub fn js_vaporetto_version() -> String {
-    env!("CARGO_PKG_VERSION").to_string()
-}
 
 // -----------------------------------------------------------------------------
 // Internal types
@@ -290,9 +281,30 @@ impl Vaporetto {
         let options = Options::from_js(options.map(Into::into))?;
         // ruzstd 0.8 has no free function like decode_all; use the same
         // StreamingDecoder that sqlite-vaporetto's load_model_from_bytes() does.
-        let mut decoder = ruzstd::decoding::StreamingDecoder::new(model).map_err(to_js_error)?;
+        let decoder = ruzstd::decoding::StreamingDecoder::new(model).map_err(to_js_error)?;
+        // zstd match runs can legitimately expand a few KB to gigabytes, and
+        // StreamingDecoder does not expose the frame's declared content size
+        // to size-check up front, so an unbounded `read_to_end` lets a small
+        // hostile or corrupted buffer grow `buf` until the allocator aborts
+        // the whole wasm module. Cap it generously above any real model (the
+        // largest documented distributed model is ~56 MB uncompressed) and
+        // read one byte past the cap so "exactly at the cap" and "would keep
+        // growing" are distinguishable, then fail with a catchable error
+        // instead of letting the allocation run away. Measured with a real
+        // bomb: `Vec`'s amortized doubling growth means the transient peak
+        // while filling `buf` can reach roughly 2-3x this constant, so it is
+        // kept well below what a plain 512 MiB round number would suggest.
+        const MAX_DECOMPRESSED_BYTES: u64 = 256 * 1024 * 1024;
         let mut buf = Vec::new();
-        decoder.read_to_end(&mut buf).map_err(to_js_error)?;
+        decoder
+            .take(MAX_DECOMPRESSED_BYTES + 1)
+            .read_to_end(&mut buf)
+            .map_err(to_js_error)?;
+        if buf.len() as u64 > MAX_DECOMPRESSED_BYTES {
+            return Err(JsError::new(&format!(
+                "compressed model decompresses to more than the {MAX_DECOMPRESSED_BYTES}-byte limit"
+            )));
+        }
         let model = Model::read(buf.as_slice()).map_err(to_js_error)?;
         Self::build(model, options)
     }
@@ -309,6 +321,24 @@ impl Vaporetto {
     /// in a loop; see the benchmark section of the README before reaching for it.
     #[wasm_bindgen(js_name = tokenizeBatch)]
     pub fn tokenize_batch(&self, texts: &StringArray) -> Result<TokenArrayArray, JsError> {
+        // StringArray is a phantom type that only exists to give the .d.ts a
+        // `string[]` signature; wasm-bindgen enforces nothing about it at the
+        // FFI boundary. Without this check, a caller who passes a bare string
+        // (array-like: has .length and index access) gets it silently
+        // mis-tokenized one UTF-16 unit at a time, and a value with no
+        // .length (e.g. {}) silently returns []. Worse, calling `.length()`/
+        // `.get()` below on something that throws on property access (e.g.
+        // null/undefined) fails *inside* the wasm-bindgen-generated `&self`
+        // borrow guard: the JS exception unwinds straight through the wasm
+        // call with no chance for the guard's "release the borrow" step to
+        // run, permanently stuck at "borrowed" — every later call, including
+        // free()/[Symbol.dispose](), then throws "attempted to take
+        // ownership of Rust value while it was borrowed" forever, leaking
+        // this instance. Array::is_array never throws, so checking first
+        // keeps the borrow guard's normal exit path intact for every input.
+        if !js_sys::Array::is_array(texts) {
+            return Err(JsError::new("tokenizeBatch expects an array of strings"));
+        }
         // Pull one string across at a time instead of letting wasm-bindgen
         // materialize the whole Vec<String> up front: peak wasm memory stays
         // flat and each input is freed before the next is copied in.
