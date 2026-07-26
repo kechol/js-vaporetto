@@ -1,0 +1,113 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - run: rustup target add wasm32-unknown-unknown
+
+      - name: Install pinned toolchain
+        run: ./scripts/setup-toolchain.sh
+
+      # The tag must describe what is actually committed under dist/, so rebuild
+      # and refuse to publish if the result differs.
+      - name: Rebuild and verify dist/ matches the tag
+        run: |
+          set -eux
+          export PATH="$PWD/tmp/bin:$PATH"
+          ./scripts/build.sh
+          if ! git diff --exit-code --stat -- dist; then
+            echo "::error::dist/ does not match the sources at this tag."
+            exit 1
+          fi
+
+      - name: package.json version matches the tag
+        env:
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -eu
+          tag="${REF_NAME#v}"
+          pkg="$(node -p 'require("./package.json").version')"
+          crate="$(grep -m1 '^version = ' Cargo.toml | cut -d'"' -f2)"
+          [ "$tag" = "$pkg" ] || { echo "::error::tag $tag != package.json $pkg"; exit 1; }
+          [ "$tag" = "$crate" ] || { echo "::error::tag $tag != Cargo.toml $crate"; exit 1; }
+
+      - run: npm ci --ignore-scripts
+      - run: npm run test:node
+      - run: npm run typecheck
+
+      - name: Build release artifacts
+        env:
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -eux
+          mkdir -p artifacts
+          # npm pack respects the "files" field, so the tarball is exactly what
+          # `npm i github:kechol/js-vaporetto` would deliver.
+          npm pack --pack-destination artifacts
+          # A zip of the web target for dropping straight into a static site.
+          (cd dist && zip -r "../artifacts/js-vaporetto-web-${REF_NAME}.zip" web)
+
+      # Only reachable once the tag exists on raw.githubusercontent.com.
+      # --allow-net is required in addition to the import: the glue fetches the
+      # .wasm at runtime. raw.githubusercontent.com is already in Deno's default
+      # --allow-import list.
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: vx.x.x
+      - name: Verify the documented Deno raw-URL import
+        env:
+          REF_NAME: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -eux
+          node -e '
+            const url = `https://raw.githubusercontent.com/${process.env.REPO}/${process.env.REF_NAME}/dist/deno/vaporetto.js`;
+            const body = `import { Vaporetto, VAPORETTO_VERSION } from ${JSON.stringify(url)};
+          const model = await Deno.readFile("tests/fixtures/tiny.model");
+          const v = Vaporetto.fromModel(model);
+          const got = v.tokenizeToString("今深海魚を数えたところだ");
+          if (got !== "今 深海 魚 を 数え た ところ だ") throw new Error("unexpected: " + got);
+          console.log("deno raw-url import ok, vaporetto " + VAPORETTO_VERSION);
+          v.free();
+          `;
+            require("node:fs").writeFileSync("/tmp/tagged.ts", body);
+          '
+          deno run --allow-read --allow-net=raw.githubusercontent.com /tmp/tagged.ts
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/*.tgz
+            artifacts/*.zip
+          generate_release_notes: true
+          body: |
+            Unofficial WebAssembly bindings for Vaporetto. Not affiliated with
+            or endorsed by daac-tools.
+
+            ### Install
+
+            ```sh
+            npm i github:${{ github.repository }}#${{ github.ref_name }}
+            ```
+
+            Deno:
+
+            ```ts
+            import { Vaporetto } from "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}/dist/deno/vaporetto.js";
+            ```
+
+            Models are not bundled. See the README for where to get one.

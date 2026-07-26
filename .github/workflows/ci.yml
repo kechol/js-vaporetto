@@ -1,0 +1,214 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  # Keep these in one place; scripts/setup-toolchain.sh reads the wasm-bindgen
+  # version out of Cargo.lock so it can never drift from the crate.
+  WASM_PACK_VERSION: 0.15.0
+  BINARYEN_VERSION: version_131
+
+jobs:
+  lint:
+    name: clippy + rustfmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets --all-features -- -D warnings
+
+  build:
+    name: build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: rustup target add wasm32-unknown-unknown
+
+      # bash is available on the Windows runner, so one script covers all three.
+      - name: Install pinned toolchain
+        shell: bash
+        run: ./scripts/setup-toolchain.sh
+
+      - name: Build all targets
+        shell: bash
+        run: |
+          export PATH="$PWD/tmp/bin:$PATH"
+          ./scripts/build.sh
+
+      # Catches a dist/ that was not rebuilt after a source change. Runs on
+      # Linux only: wasm-opt output is deterministic for a given binaryen
+      # version, but the wasm-pack/rustc build is not guaranteed to be
+      # byte-identical across operating systems.
+      - name: dist/ is in sync with the sources
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: |
+          if ! git diff --exit-code --stat -- dist; then
+            echo "::error::dist/ is out of date. Run ./scripts/build.sh and commit the result."
+            exit 1
+          fi
+
+      - name: Rust wasm tests
+        shell: bash
+        run: |
+          export PATH="$PWD/tmp/bin:$PATH"
+          wasm-pack test --node
+
+      - uses: actions/upload-artifact@v4
+        if: matrix.os == 'ubuntu-latest'
+        with:
+          name: dist
+          path: dist/
+          retention-days: 7
+
+  test-node:
+    name: node ${{ matrix.node }}
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ["22", "24"] # the two maintained LTS lines
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm ci --ignore-scripts
+      - run: npm run test:node
+      - run: npm run typecheck
+
+  test-deno:
+    name: deno
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: vx.x.x
+      - run: deno test --allow-read tests/deno.test.ts
+
+  test-bun:
+    name: bun
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun test tests/bun.test.ts
+
+  test-browser:
+    name: browser
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - run: npm ci --ignore-scripts
+      - run: npx playwright install --with-deps chromium firefox
+      - run: node tests/browser/run.mjs chromium firefox
+
+  test-install:
+    name: install from git
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - uses: oven-sh/setup-bun@v2
+
+      # `npm i github:kechol/js-vaporetto` is the documented install path, so
+      # verify the packed tarball actually resolves and runs. npm pack respects
+      # the "files" field, which is what a git install ships.
+      - name: npm pack and install into a scratch project
+        run: |
+          set -eux
+          npm pack --pack-destination /tmp
+          mkdir -p /tmp/consumer && cd /tmp/consumer
+          npm init -y >/dev/null
+          npm install /tmp/js-vaporetto-*.tgz
+          cp "$GITHUB_WORKSPACE"/tests/fixtures/tiny.model .
+          cat > check.mjs <<'EOF'
+          import { Vaporetto, VAPORETTO_VERSION } from "js-vaporetto";
+          import { readFileSync } from "node:fs";
+          const v = Vaporetto.fromModel(readFileSync("tiny.model"));
+          const got = v.tokenizeToString("今深海魚を数えたところだ");
+          if (got !== "今 深海 魚 を 数え た ところ だ") throw new Error(`unexpected: ${got}`);
+          console.log(`node ok, vaporetto ${VAPORETTO_VERSION}`);
+          v.free();
+          EOF
+          node check.mjs
+          bun check.mjs
+
+  test-deno-remote:
+    name: deno remote import
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: vx.x.x
+
+      # Section 5.3 of the spec: importing dist/deno/vaporetto.js from a raw
+      # URL must work. Against a pushed tag that URL is
+      # raw.githubusercontent.com; here we serve the same files over HTTP so
+      # the check also runs on pull requests, where no tag exists yet.
+      # Both need --allow-net because the glue fetches the .wasm at runtime.
+      - name: Import over HTTP
+        run: |
+          set -eux
+          python3 -m http.server 8731 --bind 127.0.0.1 &
+          for _ in $(seq 1 30); do curl -sf http://127.0.0.1:8731/ >/dev/null && break; sleep 0.5; done
+          cat > /tmp/remote.ts <<'EOF'
+          import { Vaporetto, VAPORETTO_VERSION } from "http://127.0.0.1:8731/dist/deno/vaporetto.js";
+          const model = await Deno.readFile("tests/fixtures/tiny.model");
+          const v = Vaporetto.fromModel(model);
+          const got = v.tokenizeToString("今深海魚を数えたところだ");
+          if (got !== "今 深海 魚 を 数え た ところ だ") throw new Error(`unexpected: ${got}`);
+          console.log(`deno remote ok, vaporetto ${VAPORETTO_VERSION}`);
+          v.free();
+          EOF
+          deno run --allow-read --allow-net=127.0.0.1:8731 --allow-import=127.0.0.1:8731 /tmp/remote.ts
+
+
+  fixtures:
+    name: fixtures are reproducible
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: pip install zstandard
+
+      # The model bytes are not reproducible across vaporetto revisions (tag
+      # models are stored in BTreeMap order, which changed upstream), so assert
+      # on behaviour rather than on a checksum.
+      - name: Retrain and compare tokenization
+        run: |
+          set -eux
+          ./tests/fixtures/train.sh
+          node --test tests/node.test.mjs
+          git checkout -- tests/fixtures/tiny.model tests/fixtures/tiny.model.zst
