@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-07-26
+
 ### Added
 
 - Cloudflare Workers support (#2). A fifth target, `dist/workers`, is
@@ -23,6 +25,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   is meant to. Nothing checked this before — the other tests import
   `dist/<target>` by relative path — so a wrong condition would only have
   surfaced as a runtime failure in whichever runtime it misrouted.
+
+### Changed
+
+- The published `.wasm` is now built with Rust 1.97.1 instead of 1.95.0,
+  which makes it 96 bytes smaller (316,807 after `-Oz`). No API or
+  behaviour change; the generated `.js` and `.d.ts` are byte for byte the
+  same apart from the version constant.
 
 ## [0.1.0] - 2026-07-26
 
@@ -92,5 +101,6 @@ Initial release.
   rather than a descriptive error. It is catchable and the module stays
   usable, but model files should be treated as trusted input.
 
-[Unreleased]: https://github.com/kechol/js-vaporetto/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/kechol/js-vaporetto/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/kechol/js-vaporetto/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/kechol/js-vaporetto/releases/tag/v0.1.0

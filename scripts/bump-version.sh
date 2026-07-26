@@ -113,11 +113,14 @@ if [ "$BUILD" -eq 1 ]; then
     export PATH
   fi
   ./scripts/build.sh > /dev/null
-  for t in bundler web node deno; do
+  # Every directory build.sh writes an entry wrapper into, so adding a target
+  # cannot silently drop out of this check.
+  targets=$(find dist -name vaporetto.js -exec dirname {} \; | sed 's|^dist/||' | sort)
+  for t in $targets; do
     got=$(grep -oE 'JS_VAPORETTO_VERSION = "[^"]*"' "dist/$t/vaporetto.js" | head -1 | cut -d'"' -f2)
     [ "$got" = "$NEW" ] || { echo "dist/$t reports $got, expected $NEW" >&2; exit 1; }
   done
-  echo "  dist/ rebuilt; all four targets report $NEW"
+  echo "  dist/ rebuilt; all targets report $NEW ($(echo "$targets" | tr '\n' ' '))"
 else
   echo "skipped the dist/ rebuild (--no-build). Run ./scripts/build.sh before committing."
 fi
