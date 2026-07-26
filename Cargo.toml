@@ -12,8 +12,20 @@ publish = false
 [lib]
 crate-type = ["cdylib", "rlib"]
 
+[features]
+default = ["zstd"]
+# fromCompressedModel を有効にする。解凍は ruzstd で Rust 側で行う。
+zstd = ["dep:ruzstd"]
+# panic を "unreachable" ではなく読めるスタックトレースにする。
+# サイズが増えるのでリリースビルドでは有効にしない。
+console_error_panic_hook = ["dep:console_error_panic_hook"]
+
 [dependencies]
 wasm-bindgen = "0.2.126"
+serde = { version = "1.0", features = ["derive"] }
+serde-wasm-bindgen = "0.6.5"
+ruzstd = { version = "0.8", optional = true }
+console_error_panic_hook = { version = "0.1.7", optional = true }
 
 # 0.6.5 の default features は
 #   ["std", "cache-type-score", "fix-weight-length", "tag-prediction", "charwise-pma"]
