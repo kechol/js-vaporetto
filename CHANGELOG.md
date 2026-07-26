@@ -52,6 +52,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   exports. Nothing called them — the build reads the versions from
   `Cargo.toml` — and they showed up in the published type declarations.
 
+### Security
+
+- The toolchain installer verifies a recorded sha256 for every archive it
+  downloads and refuses to unpack anything that does not match, or any
+  platform with no recorded hash. Pinning a version alone does not help
+  here: a GitHub release asset can be replaced without the tag moving.
+- Third-party GitHub Actions are pinned to commit SHAs rather than tags,
+  which can be repointed at different code.
+
 ### Notes
 
 - `charwise-pma` is off by default. It costs 8.6% more wasm and roughly

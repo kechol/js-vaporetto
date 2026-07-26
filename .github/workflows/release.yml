@@ -1,5 +1,10 @@
 name: Release
 
+# Third-party actions are pinned to a commit SHA, not a tag: a tag can be moved
+# to point at different code without the reference here changing. The comment
+# after each SHA is the release it corresponds to. To bump one, resolve the new
+# tag with `gh api repos/<owner>/<repo>/git/ref/tags/<tag>` and update both.
+
 on:
   push:
     tags: ["v*"]
@@ -11,13 +16,13 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
       - run: rustup show # installs the toolchain pinned in rust-toolchain.toml
-      - uses: Swatinem/rust-cache@v2
-      - uses: actions/setup-node@v4
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2, at 2.9.1
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: "24"
-      - uses: denoland/setup-deno@v2
+      - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
         with:
           deno-version: vx.x.x
 
@@ -165,7 +170,7 @@ jobs:
           } > release-notes.md
           cat release-notes.md
 
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:
           files: |
             artifacts/*.tgz
