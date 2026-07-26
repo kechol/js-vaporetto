@@ -88,18 +88,11 @@ jobs:
             exit 1
           fi
 
-      # dist/ is committed, so the tag has to describe what is actually in it.
-      # scripts/build.sh bakes the version into the generated wrappers, which
-      # makes a forgotten rebuild a real and otherwise silent failure.
+      # The tag has to describe what is actually committed under dist/.
+      # Shared with ci.yml so the two cannot drift — they did, and it only
+      # showed up when a tag was pushed.
       - name: dist/ matches the sources at this tag
-        run: |
-          set -eux
-          export PATH="$PWD/tmp/bin:$PATH"
-          ./scripts/build.sh
-          if ! git diff --exit-code --stat -- dist; then
-            echo "::error::dist/ does not match the sources at this tag. Run ./scripts/bump-version.sh (or ./scripts/build.sh) and commit."
-            exit 1
-          fi
+        run: ./scripts/check-dist-sync.sh
 
       - run: npm ci --ignore-scripts
       - run: npm run lint
