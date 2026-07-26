@@ -1,0 +1,67 @@
+{
+  "name": "js-vaporetto",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Unofficial WebAssembly bindings for the Vaporetto Japanese tokenizer",
+  "license": "MIT OR Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kechol/js-vaporetto.git"
+  },
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "deno": "./dist/deno/vaporetto.js",
+      "bun": "./dist/node/vaporetto.js",
+      "browser": "./dist/bundler/vaporetto.js",
+      "node": "./dist/node/vaporetto.js",
+      "default": "./dist/bundler/vaporetto.js"
+    },
+    "./web": {
+      "types": "./dist/web/vaporetto.d.ts",
+      "default": "./dist/web/vaporetto.js"
+    },
+    "./node": {
+      "types": "./dist/node/vaporetto.d.ts",
+      "default": "./dist/node/vaporetto.js"
+    },
+    "./deno": {
+      "types": "./dist/deno/vaporetto.d.ts",
+      "default": "./dist/deno/vaporetto.js"
+    },
+    "./bundler": {
+      "types": "./dist/bundler/vaporetto.d.ts",
+      "default": "./dist/bundler/vaporetto.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "types": "./dist/types/index.d.ts",
+  "files": [
+    "dist",
+    "LICENSE-APACHE",
+    "LICENSE-MIT",
+    "NOTICE",
+    "README.md"
+  ],
+  "sideEffects": [
+    "./dist/bundler/js_vaporetto.js",
+    "./dist/web/js_vaporetto.js",
+    "./dist/deno/js_vaporetto.js"
+  ],
+  "scripts": {
+    "setup": "./scripts/setup-toolchain.sh",
+    "build": "./scripts/build.sh",
+    "test": "node --test tests/node.test.mjs",
+    "test:deno": "deno test --allow-read tests/deno.test.ts",
+    "test:bun": "bun test tests/bun.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "playwright": "^1.62.0",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
