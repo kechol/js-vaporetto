@@ -496,6 +496,11 @@ Cargo feature:
 | `charwise-pma` | 無効 | [上記](#charwise-pma) 参照。約 27 KB 増える |
 | `console_error_panic_hook` | 無効 | デバッグ用に panic のスタックトレースを読めるようにする。リリースビルド向けではない |
 
+リリースは `./scripts/bump-version.sh X.Y.Z`（`Cargo.toml` / `Cargo.lock` /
+`package.json` と両 README の固定インストール URL を更新し、`dist/` を再ビルドする）、
+`CHANGELOG.md` への追記、`vX.Y.Z` タグの push の 3 つです。
+`.github/workflows/release.yml` が公開前にすべてをタグと突き合わせて検証します。
+
 `dist/` は意図的にコミットしています。GitHub から直接インストールされるパッケージだからです。
 CI が再ビルドし、コミット済みの内容と差があれば失敗します。`.wasm` は 4 ターゲットとも
 バイト単位で同一なので、作業ツリー上は約 1.3 MB になりますが git は 1 つの blob として

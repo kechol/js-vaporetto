@@ -514,6 +514,12 @@ Cargo features:
 | `charwise-pma` | off | See [above](#charwise-pma). Costs ~27 KB. |
 | `console_error_panic_hook` | off | Readable panic traces for debugging. Not for release builds. |
 
+Releasing is `./scripts/bump-version.sh X.Y.Z` (it moves the version in
+`Cargo.toml`, `Cargo.lock`, `package.json` and both READMEs' pinned install
+URLs, then rebuilds `dist/`), a `CHANGELOG.md` entry, and a pushed `vX.Y.Z`
+tag. `.github/workflows/release.yml` re-verifies all of that against the tag
+before it publishes anything.
+
 `dist/` is committed on purpose, since the package is installed straight from
 GitHub. CI rebuilds it and fails if the result differs from what is committed.
 The `.wasm` is byte-identical across all four targets, so `dist/` totals ~1.3 MB

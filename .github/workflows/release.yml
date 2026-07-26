@@ -17,37 +17,94 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: vx.x.x
       - run: rustup target add wasm32-unknown-unknown
 
       - name: Install pinned toolchain
         run: ./scripts/setup-toolchain.sh
 
-      # The tag must describe what is actually committed under dist/, so rebuild
-      # and refuse to publish if the result differs.
-      - name: Rebuild and verify dist/ matches the tag
+      # --- Everything that could make a release wrong is checked before we
+      # --- publish anything. A tag is cheap to delete; a Release that people
+      # --- have already fetched is not.
+
+      - name: Version files agree with the tag
+        env:
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -eu
+          version="${REF_NAME#v}"
+          pkg="$(node -p 'require("./package.json").version')"
+          crate="$(awk -F'"' '/^version = /{print $2; exit}' Cargo.toml)"
+          [ "$version" = "$pkg" ] || { echo "::error::tag $version != package.json $pkg"; exit 1; }
+          [ "$version" = "$crate" ] || { echo "::error::tag $version != Cargo.toml $crate"; exit 1; }
+          echo "version=$version" >> "$GITHUB_ENV"
+
+      # The READMEs carry the actual install instructions, pinned to a tag, so a
+      # stale tag there silently sends users to the previous release.
+      - name: README install URLs point at this tag
+        env:
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -eu
+          bad=0
+          for f in README.md README.ja.md; do
+            if stale=$(grep -nE "js-vaporetto[/#]v[0-9]+\.[0-9]+\.[0-9]+" "$f" | grep -v "js-vaporetto[/#]${REF_NAME}\b"); then
+              echo "::error file=$f::pinned URLs do not match ${REF_NAME}"
+              echo "$stale"
+              bad=1
+            fi
+            # Guard against the check passing because the URLs were removed
+            # entirely rather than because they are correct.
+            n=$(grep -cE "js-vaporetto[/#]${REF_NAME}\b" "$f" || true)
+            if [ "$n" -lt 4 ]; then
+              echo "::error file=$f::expected 4 pinned install URLs for ${REF_NAME}, found $n"
+              bad=1
+            fi
+          done
+          exit "$bad"
+
+      - name: CHANGELOG has an entry for this version
+        run: |
+          set -eu
+          grep -qE "^## \[${version}\]" CHANGELOG.md || {
+            echo "::error::CHANGELOG.md has no '## [${version}]' section"
+            exit 1
+          }
+          # Everything between this heading and the next one becomes the
+          # release body.
+          awk -v ver="$version" '
+            $0 ~ "^## \\[" ver "\\]" { found = 1; next }
+            found && /^## \[/        { exit }
+            found                    { print }
+          ' CHANGELOG.md > release-body.md
+          if [ ! -s release-body.md ]; then
+            echo "::error::the '## [${version}]' section is empty"
+            exit 1
+          fi
+
+      # dist/ is committed, so the tag has to describe what is actually in it.
+      # scripts/build.sh bakes the version into the generated wrappers, which
+      # makes a forgotten rebuild a real and otherwise silent failure.
+      - name: dist/ matches the sources at this tag
         run: |
           set -eux
           export PATH="$PWD/tmp/bin:$PATH"
           ./scripts/build.sh
           if ! git diff --exit-code --stat -- dist; then
-            echo "::error::dist/ does not match the sources at this tag."
+            echo "::error::dist/ does not match the sources at this tag. Run ./scripts/bump-version.sh (or ./scripts/build.sh) and commit."
             exit 1
           fi
 
-      - name: package.json version matches the tag
-        env:
-          REF_NAME: ${{ github.ref_name }}
-        run: |
-          set -eu
-          tag="${REF_NAME#v}"
-          pkg="$(node -p 'require("./package.json").version')"
-          crate="$(grep -m1 '^version = ' Cargo.toml | cut -d'"' -f2)"
-          [ "$tag" = "$pkg" ] || { echo "::error::tag $tag != package.json $pkg"; exit 1; }
-          [ "$tag" = "$crate" ] || { echo "::error::tag $tag != Cargo.toml $crate"; exit 1; }
-
       - run: npm ci --ignore-scripts
-      - run: npm run test:node
+      - run: npm run lint
       - run: npm run typecheck
+      - run: npm run test:rust
+      - run: npm run test:node
+      - run: npm run test:deno
+
+      # --- artifacts ---------------------------------------------------------
 
       - name: Build release artifacts
         env:
@@ -56,58 +113,65 @@ jobs:
           set -eux
           mkdir -p artifacts
           # npm pack respects the "files" field, so the tarball is exactly what
-          # `npm i github:kechol/js-vaporetto` would deliver.
+          # `npm i github:kechol/js-vaporetto` delivers.
           npm pack --pack-destination artifacts
-          # A zip of the web target for dropping straight into a static site.
-          (cd dist && zip -r "../artifacts/js-vaporetto-web-${REF_NAME}.zip" web)
+          # The web target on its own, for dropping into a static site.
+          (cd dist && zip -qr "../artifacts/js-vaporetto-web-${REF_NAME}.zip" web)
+          # List the inputs explicitly: `./*` would fold SHA256SUMS.txt into
+          # itself on a re-run.
+          (cd artifacts && sha256sum ./*.tgz ./*.zip > SHA256SUMS.txt && cat SHA256SUMS.txt)
 
-      # Only reachable once the tag exists on raw.githubusercontent.com.
-      # --allow-net is required in addition to the import: the glue fetches the
-      # .wasm at runtime. raw.githubusercontent.com is already in Deno's default
-      # --allow-import list.
-      - uses: denoland/setup-deno@v2
-        with:
-          deno-version: vx.x.x
-      - name: Verify the documented Deno raw-URL import
+      # Only meaningful once the tag exists on raw.githubusercontent.com, which
+      # is why this cannot run in the PR workflow. --allow-net is needed in
+      # addition to the import: the glue fetches the .wasm at runtime.
+      - name: The documented Deno raw-URL import works
         env:
           REF_NAME: ${{ github.ref_name }}
           REPO: ${{ github.repository }}
         run: |
           set -eux
           node -e '
-            const url = `https://raw.githubusercontent.com/${process.env.REPO}/${process.env.REF_NAME}/dist/deno/vaporetto.js`;
-            const body = `import { Vaporetto, VAPORETTO_VERSION } from ${JSON.stringify(url)};
-          const model = await Deno.readFile("tests/fixtures/tiny.model");
-          const v = Vaporetto.fromModel(model);
-          const got = v.tokenizeToString("今深海魚を数えたところだ");
-          if (got !== "今 深海 魚 を 数え た ところ だ") throw new Error("unexpected: " + got);
-          console.log("deno raw-url import ok, vaporetto " + VAPORETTO_VERSION);
-          v.free();
-          `;
-            require("node:fs").writeFileSync("/tmp/tagged.ts", body);
+            const tag = process.env.REF_NAME;
+            const url = `https://raw.githubusercontent.com/${process.env.REPO}/${tag}/dist/deno/vaporetto.js`;
+            const body = [
+              `import { Vaporetto, VAPORETTO_VERSION, JS_VAPORETTO_VERSION } from ${JSON.stringify(url)};`,
+              `const model = await Deno.readFile("tests/fixtures/tiny.model");`,
+              `const v = Vaporetto.fromModel(model);`,
+              `const got = v.tokenizeToString("今深海魚を数えたところだ");`,
+              `if (got !== "今 深海 魚 を 数え た ところ だ") throw new Error("unexpected: " + got);`,
+              `if (JS_VAPORETTO_VERSION !== ${JSON.stringify(tag.replace(/^v/, ""))}) {`,
+              `  throw new Error("wrapper reports " + JS_VAPORETTO_VERSION);`,
+              `}`,
+              `console.log("deno raw-url import ok, vaporetto " + VAPORETTO_VERSION);`,
+              `v.free();`,
+            ].join("\n");
+            require("node:fs").writeFileSync(process.env.RUNNER_TEMP + "/tagged.ts", body);
           '
-          deno run --allow-read --allow-net=raw.githubusercontent.com /tmp/tagged.ts
+          deno run --allow-read --allow-net=raw.githubusercontent.com "$RUNNER_TEMP/tagged.ts"
+
+      - name: Compose the release body
+        env:
+          REPO: ${{ github.repository }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -eu
+          {
+            printf 'Unofficial WebAssembly bindings for Vaporetto. Not affiliated with or\n'
+            printf 'endorsed by daac-tools.\n\n'
+            cat release-body.md
+            printf '\n### Install\n\n'
+            printf '```sh\nnpm i github:%s#%s\n```\n\n' "$REPO" "$REF_NAME"
+            printf 'Deno:\n\n```ts\nimport { Vaporetto } from "https://raw.githubusercontent.com/%s/%s/dist/deno/vaporetto.js";\n```\n\n' "$REPO" "$REF_NAME"
+            printf 'Models are not bundled. See the [README](https://github.com/%s/blob/%s/README.md#models-are-not-bundled) for where to get one.\n' "$REPO" "$REF_NAME"
+          } > release-notes.md
+          cat release-notes.md
 
       - uses: softprops/action-gh-release@v2
         with:
           files: |
             artifacts/*.tgz
             artifacts/*.zip
+            artifacts/SHA256SUMS.txt
+          body_path: release-notes.md
           generate_release_notes: true
-          body: |
-            Unofficial WebAssembly bindings for Vaporetto. Not affiliated with
-            or endorsed by daac-tools.
-
-            ### Install
-
-            ```sh
-            npm i github:${{ github.repository }}#${{ github.ref_name }}
-            ```
-
-            Deno:
-
-            ```ts
-            import { Vaporetto } from "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}/dist/deno/vaporetto.js";
-            ```
-
-            Models are not bundled. See the README for where to get one.
+          fail_on_unmatched_files: true
