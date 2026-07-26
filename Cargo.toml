@@ -16,6 +16,11 @@ crate-type = ["cdylib", "rlib"]
 default = ["zstd"]
 # fromCompressedModel を有効にする。解凍は ruzstd で Rust 側で行う。
 zstd = ["dep:ruzstd"]
+# daachorse の charwise 版オートマトンを使う。実測（bccwj-suw+unidic_pos+pron,
+# 342k 文字）では tokenize が 5〜8% 速くなる一方、モデル読込が 2 倍（+1,050ms）
+# 遅くなり wasm が +8.6% 大きくなる。損益分岐は約 4,500 万文字なので既定は無効。
+# 長時間動かすサーバ用途で大量に処理する場合のみ有効にする価値がある。
+charwise-pma = ["vaporetto/charwise-pma"]
 # panic を "unreachable" ではなく読めるスタックトレースにする。
 # サイズが増えるのでリリースビルドでは有効にしない。
 console_error_panic_hook = ["dep:console_error_panic_hook"]
@@ -24,6 +29,7 @@ console_error_panic_hook = ["dep:console_error_panic_hook"]
 wasm-bindgen = "0.2.126"
 serde = { version = "1.0", features = ["derive"] }
 serde-wasm-bindgen = "0.6.5"
+js-sys = "0.3.103"
 ruzstd = { version = "0.8", optional = true }
 console_error_panic_hook = { version = "0.1.7", optional = true }
 
@@ -39,7 +45,6 @@ features = [
     "cache-type-score",
     "fix-weight-length",
     "tag-prediction",
-    "charwise-pma",
     "kytea",
 ]
 

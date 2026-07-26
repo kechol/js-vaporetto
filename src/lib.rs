@@ -67,6 +67,9 @@ extern "C" {
 
     #[wasm_bindgen(typescript_type = "Token[][]")]
     pub type TokenArrayArray;
+
+    #[wasm_bindgen(typescript_type = "string[]")]
+    pub type StringArray;
 }
 
 // -----------------------------------------------------------------------------
@@ -291,12 +294,21 @@ impl Vaporetto {
 
     /// 文字列コピーのオーバーヘッドを償却するためのバッチ版。
     #[wasm_bindgen(js_name = tokenizeBatch)]
-    pub fn tokenize_batch(&self, texts: Vec<String>) -> Result<TokenArrayArray, JsError> {
-        let mut out = Vec::with_capacity(texts.len());
-        for text in &texts {
-            out.push(self.collect_tokens(text)?);
+    pub fn tokenize_batch(&self, texts: &StringArray) -> Result<TokenArrayArray, JsError> {
+        // Pull one string across at a time instead of letting wasm-bindgen
+        // materialize the whole Vec<String> up front: peak wasm memory stays
+        // flat and each input is freed before the next is copied in.
+        let input: &js_sys::Array = texts.unchecked_ref();
+        let len = input.length();
+        let output = js_sys::Array::new_with_length(len);
+        for i in 0..len {
+            let text = input
+                .get(i)
+                .as_string()
+                .ok_or_else(|| JsError::new("tokenizeBatch expects an array of strings"))?;
+            output.set(i, to_js_value(&self.collect_tokens(&text)?)?);
         }
-        Ok(to_js_value(&out)?.into())
+        Ok(JsValue::from(output).into())
     }
 
     /// 分かち書き結果を文字列で返す。区切りは半角スペース。
