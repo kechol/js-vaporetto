@@ -46,6 +46,9 @@ features = [
 [dependencies.vaporetto_rules]
 version = "=0.6.5"
 
+[dev-dependencies]
+wasm-bindgen-test = "0.3.76"
+
 [profile.release]
 opt-level = "s"
 lto = true

@@ -1,0 +1,54 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>js-vaporetto browser tests</title>
+<pre id="log"></pre>
+<script type="module">
+  import init, { Vaporetto, VAPORETTO_VERSION, JS_VAPORETTO_VERSION } from "/dist/web/vaporetto.js";
+  import { asserts, createSuite } from "/tests/suite.mjs";
+
+  const results = [];
+  try {
+    await init();
+    const read = async (name) =>
+      new Uint8Array(await (await fetch(`/tests/fixtures/${name}`)).arrayBuffer());
+
+    const cases = createSuite({
+      Vaporetto,
+      model: await read("tiny.model"),
+      modelZst: await read("tiny.model.zst"),
+      vaporettoVersion: VAPORETTO_VERSION,
+      jsVaporettoVersion: JS_VAPORETTO_VERSION,
+    });
+
+    for (const { name, fn } of cases) {
+      try {
+        fn(asserts);
+        results.push({ name, ok: true });
+      } catch (e) {
+        results.push({ name, ok: false, error: String(e && e.message) });
+      }
+    }
+
+    // `using` is syntax, so an engine without explicit resource management
+    // fails at import time rather than at call time.
+    try {
+      const { usingReleasesOnScopeExit } = await import("/tests/using.mjs");
+      usingReleasesOnScopeExit({ Vaporetto, model: await read("tiny.model"), asserts });
+      results.push({ name: "using releases the tokenizer on scope exit", ok: true });
+    } catch (e) {
+      results.push({
+        name: "using releases the tokenizer on scope exit",
+        ok: false,
+        error: `${e && e.message} (engine may not support explicit resource management)`,
+      });
+    }
+  } catch (e) {
+    results.push({ name: "bootstrap", ok: false, error: String(e && e.message) });
+  }
+
+  globalThis.__results = results;
+  document.getElementById("log").textContent = results
+    .map((r) => `${r.ok ? "ok" : "FAIL"}  ${r.name}${r.error ? `\n      ${r.error}` : ""}`)
+    .join("\n");
+  document.title = "done";
+</script>
