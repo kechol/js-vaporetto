@@ -6,6 +6,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Cloudflare Workers support (#2). A fifth target, `dist/workers`, is
+  reached through a new `workerd` export condition and a
+  `js-vaporetto/workers` subpath. It reuses the `web` glue and `.wasm` and
+  initializes on import, so `import { Vaporetto } from "js-vaporetto"`
+  works in a Worker with no plugin and nothing to await. Without it
+  Wrangler fell through to the `browser` condition and the `bundler`
+  target, which fails at startup with
+  `wasm2.__wbindgen_start is not a function`.
+- `npm run test:workers`: the shared suite (160 cases) on workerd via
+  `wrangler dev --local`. Runs in CI, as does a check that the packed
+  tarball works from `node_modules` inside a Worker.
+- `npm run test:exports`: every export condition resolves to the target it
+  is meant to. Nothing checked this before — the other tests import
+  `dist/<target>` by relative path — so a wrong condition would only have
+  surfaced as a runtime failure in whichever runtime it misrouted.
+
 ## [0.1.0] - 2026-07-26
 
 Initial release.

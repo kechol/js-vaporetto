@@ -94,6 +94,9 @@ jobs:
           node-version: ${{ matrix.node }}
       - run: npm ci --ignore-scripts
       - run: npm run test:node
+      # Needs nothing but Node, so it rides along here rather than in the
+      # runtime-specific jobs whose conditions it checks.
+      - run: npm run test:exports
       - run: npm run typecheck
 
   test-deno:
@@ -117,6 +120,21 @@ jobs:
         with:
           bun-version: latest
       - run: bun test tests/bun.test.ts
+
+  test-workers:
+    name: cloudflare workers
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24"
+      # --ignore-scripts skips workerd's postinstall, which normally copies the
+      # binary into node_modules/workerd/bin. Verified not to matter: miniflare
+      # resolves @cloudflare/workerd-<platform> directly at runtime.
+      - run: npm ci --ignore-scripts
+      - run: npm run test:workers
 
   test-browser:
     name: browser
@@ -164,6 +182,37 @@ jobs:
           EOF
           node check.mjs
           bun check.mjs
+
+      # See tests/workers/consumer-check.mjs for why the in-repo workers test
+      # does not cover this.
+      - name: Run the installed package on workerd
+        run: |
+          set -eux
+          cd /tmp/consumer
+          npm install wrangler@4
+          cat > worker.mjs <<'EOF'
+          import { Vaporetto } from "js-vaporetto";
+          import model from "./tiny.model";
+          export default {
+            fetch() {
+              const v = Vaporetto.fromModel(new Uint8Array(model));
+              try {
+                return new Response(v.tokenizeToString("今深海魚を数えたところだ"));
+              } finally {
+                v.free();
+              }
+            },
+          };
+          EOF
+          cat > wrangler.jsonc <<'EOF'
+          {
+            "name": "consumer",
+            "main": "worker.mjs",
+            "compatibility_date": "2025-01-01",
+            "rules": [{ "type": "Data", "globs": ["**/*.model"], "fallthrough": true }]
+          }
+          EOF
+          node "$GITHUB_WORKSPACE/tests/workers/consumer-check.mjs" /tmp/consumer
 
   test-deno-remote:
     name: deno remote import

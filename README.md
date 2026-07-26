@@ -175,6 +175,56 @@ A zip of the `web` target is attached to every
 [release](https://github.com/kechol/js-vaporetto/releases) if you would rather
 self-host it.
 
+### Cloudflare Workers
+
+The `workerd` export condition resolves to a target that has already initialized
+its wasm module, so there is nothing to await and no plugin to install. The only
+configuration needed is telling Wrangler that your model file is bytes:
+
+```js
+import { Vaporetto } from "js-vaporetto";
+import model from "./tiny.model";
+
+export default {
+  fetch() {
+    const tokenizer = Vaporetto.fromModel(new Uint8Array(model));
+    try {
+      return new Response(tokenizer.tokenizeToString("今深海魚を数えたところだ"));
+    } finally {
+      tokenizer.free();
+    }
+  },
+};
+```
+
+```jsonc
+// wrangler.jsonc
+{
+  "rules": [{ "type": "Data", "globs": ["**/*.model"], "fallthrough": true }]
+}
+```
+
+Wrangler compiles an imported `.wasm` into a `WebAssembly.Module`, which is what
+wasm-bindgen's synchronous initializer takes. The other targets cannot start
+there: `node` needs a filesystem, `web` and `deno` fetch the `.wasm` from a
+relative URL, and `bundler` fails at startup with `wasm2.__wbindgen_start is not
+a function`.
+
+Two platform limits decide which models are usable, and neither is something
+this binding can work around:
+
+* **Worker size.** A model cannot be bundled into the Worker unless it is small.
+  The fixture model used above is 1 KB; a full distributed model is tens of MB,
+  far past the Worker size limit. Fetch those from R2 or KV at runtime and pass
+  the bytes to `fromModel`.
+* **Model load time.** Loading the 56 MB `bccwj-suw+unidic_pos+pron` model on
+  workerd took 1,231 ms (best of three, `wrangler dev --local` on an M-series
+  Mac; a local run enforces none of the deployed memory, CPU or size limits, so
+  read this as a timing and not as evidence that such a model deploys). That is
+  far beyond the startup CPU budget, so load inside `fetch()` and keep the
+  tokenizer in a module-scope variable for later requests on the same isolate to
+  reuse. Tokenizing is unaffected — 1 ms for 1,100 characters in the same run.
+
 ### Vite
 
 The default export condition resolves to the `bundler` target, which imports the
@@ -236,6 +286,7 @@ import { Vaporetto } from "js-vaporetto/node";     // CommonJS, reads the .wasm 
 import { Vaporetto } from "js-vaporetto/deno";     // ESM, fetches the .wasm
 import init, { Vaporetto } from "js-vaporetto/web";     // ESM, async init required
 import { Vaporetto } from "js-vaporetto/bundler";  // ESM, imports the .wasm
+import { Vaporetto } from "js-vaporetto/workers";  // ESM, initialized on import
 ```
 
 ## Models are not bundled
@@ -465,6 +516,7 @@ Chromium run of the built output). Node 20 reached end of life upstream on
 | Node.js | 20.x, 22.x, 24.x | `node` | `dist/node` (CommonJS). `using` needs 24+ |
 | Deno | 2.x | `deno` | `dist/deno` |
 | Bun | 1.3.x | `bun` | `dist/node` |
+| Cloudflare Workers | workerd via Wrangler 4.x | `workerd` | `dist/workers` |
 | Chromium | Playwright stable | — | `dist/web` |
 | Firefox | Playwright stable | — | `dist/web` |
 | Vite | 7.3.x | `browser` / `default` | `dist/bundler` (needs `vite-plugin-wasm`) or `dist/web` |
