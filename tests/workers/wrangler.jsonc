@@ -5,7 +5,10 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "js-vaporetto-tests",
   "main": "worker.mjs",
-  "compatibility_date": "2025-01-01",
+  // Kept at the build date of the workerd the pinned wrangler ships, so the
+  // suite runs against current runtime semantics rather than a frozen old
+  // compatibility mode. A later date than workerd's own only earns a warning.
+  "compatibility_date": "2026-07-22",
   // Model fixtures are bytes, not modules. Without this they would be parsed
   // as JavaScript. `.wasm` keeps wrangler's built-in CompiledWasm rule.
   "rules": [{ "type": "Data", "globs": ["**/*.model", "**/*.zst"], "fallthrough": true }]
