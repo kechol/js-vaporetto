@@ -52,15 +52,21 @@ jobs:
           export PATH="$PWD/tmp/bin:$PATH"
           ./scripts/build.sh
 
-      # Catches a dist/ that was not rebuilt after a source change. Runs on
-      # Linux only: wasm-opt output is deterministic for a given binaryen
-      # version, but the wasm-pack/rustc build is not guaranteed to be
-      # byte-identical across operating systems.
+      # Catches a dist/ that was not rebuilt after a source change.
+      #
+      # The .wasm is excluded from the byte comparison on purpose: the same
+      # rustc emits a different binary depending on the host OS (measured:
+      # 316,903 bytes on macOS vs 316,505 on Linux for identical sources),
+      # while every generated .js and .d.ts is identical everywhere. The
+      # staleness signal comes from dist/BUILD_INFO instead, which records a
+      # hash of each input, so editing a source without rebuilding fails here
+      # regardless of which OS built the committed artifacts. That the .wasm
+      # itself works is covered by the runtime test jobs, which import the
+      # committed dist/.
       - name: dist/ is in sync with the sources
-        if: matrix.os == 'ubuntu-latest'
         shell: bash
         run: |
-          if ! git diff --exit-code --stat -- dist; then
+          if ! git diff --exit-code --stat -- dist ':(exclude)dist/*/js_vaporetto_bg.wasm'; then
             echo "::error::dist/ is out of date. Run ./scripts/build.sh and commit the result."
             exit 1
           fi

@@ -532,7 +532,18 @@ tag. `.github/workflows/release.yml` re-verifies all of that against the tag
 before it publishes anything.
 
 `dist/` is committed on purpose, since the package is installed straight from
-GitHub. CI rebuilds it and fails if the result differs from what is committed.
+GitHub. CI rebuilds it and fails if the generated JS or type declarations differ
+from what is committed.
+
+The `.wasm` is deliberately excluded from that byte comparison: the same rustc
+emits a different binary depending on the host OS (measured: 316,903 bytes on
+macOS against 316,505 on Linux for identical sources), while every generated
+`.js` and `.d.ts` is identical everywhere. Staleness is caught by
+`dist/BUILD_INFO` instead, which records a hash of each input — editing a source
+without rebuilding fails the check whatever OS built the committed artifacts.
+That the `.wasm` actually works is covered by the runtime jobs, which import the
+committed `dist/`.
+
 The `.wasm` is byte-identical across all four targets, so `dist/` totals ~1.3 MB
 on disk while git stores a single blob.
 
