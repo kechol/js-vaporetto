@@ -10,7 +10,9 @@
   "files": [
     "js_vaporetto_bg.wasm",
     "js_vaporetto.js",
-    "js_vaporetto.d.ts"
+    "js_vaporetto.d.ts",
+    "LICENSE-APACHE",
+    "LICENSE-MIT"
   ],
   "main": "js_vaporetto.js",
   "types": "js_vaporetto.d.ts"

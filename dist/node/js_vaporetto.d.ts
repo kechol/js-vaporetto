@@ -1,20 +1,54 @@
 /* tslint:disable */
 /* eslint-disable */
 
+export interface VaporettoOptions {
+    /** 品詞・読みなどのタグを予測する。既定 false */
+    predictTags?: boolean;
+    /** 指定した文字種を分割しない。"D"|"R"|"H"|"T"|"K"|"O"|"G" の組み合わせ（例 "DGR"）。既定 "" */
+    wsConst?: string;
+    /** 入力を事前に正規化する。既定 true */
+    normalize?: boolean;
+}
+
+export interface Token {
+    surface: string;
+    /** 入力文字列における UTF-16 コード単位のオフセット（開始・含む） */
+    start: number;
+    /** 同（終了・含まない） */
+    end: number;
+    /** predictTags が false のときは空配列 */
+    tags: (string | null)[];
+}
+
+
+
 export class Vaporetto {
     private constructor();
     free(): void;
     [Symbol.dispose](): void;
     /**
-     * 非圧縮の Vaporetto モデルから生成する。
-     *
-     * `Model::read_slice` ではなく `Model::read` を使う。前者は先頭 25 バイトを
-     * 境界チェックなしにスライスするため、25 バイト未満の入力で panic する。
-     * `&[u8]` は `std::io::Read` を実装しているので、後者なら安全に `Err` が返る。
+     * zstd 圧縮されたモデルから生成する。
      */
-    static fromModel(model: Uint8Array): Vaporetto;
+    static fromCompressedModel(model: Uint8Array, options?: VaporettoOptions | null): Vaporetto;
+    /**
+     * KyTea モデルから生成する。タグ予測は非対応。
+     */
+    static fromKyteaModel(model: Uint8Array, options?: Omit<VaporettoOptions, "predictTags"> | null): Vaporetto;
+    /**
+     * 非圧縮の Vaporetto モデルから生成する。
+     */
+    static fromModel(model: Uint8Array, options?: VaporettoOptions | null): Vaporetto;
+    /**
+     * トークン列を返す。`start` / `end` は UTF-16 コード単位。
+     */
+    tokenize(text: string): Token[];
+    /**
+     * 文字列コピーのオーバーヘッドを償却するためのバッチ版。
+     */
+    tokenizeBatch(texts: string[]): Token[][];
     /**
      * 分かち書き結果を文字列で返す。区切りは半角スペース。
+     * タグ予測が有効なときはタグが `/` 区切りで付く。
      */
     tokenizeToString(text: string): string;
 }
