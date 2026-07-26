@@ -1,5 +1,7 @@
 # js-vaporetto
 
+*[日本語版 README](README.ja.md)*
+
 WebAssembly bindings for [Vaporetto](https://github.com/daac-tools/vaporetto), a
 fast pointwise-prediction Japanese tokenizer, for browsers, Node.js, Deno and Bun.
 
@@ -39,6 +41,72 @@ binding. (The same caveat is documented by
 
 You can see it in the bundled fixture model: `ところ` is tagged `名詞` in
 `ここは静かなところだ` and `助詞` in `今深海魚を数えたところだ`.
+
+## Is Vaporetto the right tokenizer for you?
+
+Japanese tokenizers fall into three algorithmic families, and they are good at
+different things.
+
+| family | how it works | examples |
+|---|---|---|
+| minimum cost (Viterbi / lattice) | enumerate candidates from a dictionary, find the lowest-cost path | MeCab, Vibrato, Lindera, Sudachi, Kuromoji |
+| **pointwise** | classify each character boundary independently | KyTea, **Vaporetto** |
+| longest match | match learned patterns left to right, deterministically | Jagger |
+| neural | sequence labelling / foundation models | Juman++, KWJA, nagisa |
+
+Vaporetto is pointwise. The distinguishing consequence is that **it needs a model
+but no dictionary**, and that is what makes it viable in a browser.
+
+### Why this exists
+
+For a browser or edge runtime, size decides everything. Measured on
+2026-07-26:
+
+| | size |
+|---|---:|
+| js-vaporetto engine (`dist/web`, one target) | **316 KB** (127 KB gzipped) |
+| smallest Vaporetto model, `bccwj-suw_c0.003` | **8.9 KB** compressed |
+| Vaporetto model with POS + reading tags | 6.0 MB compressed |
+| `lindera-wasm-web-ipadic@2.0.0`, unpacked | 13.1 MB |
+| `lindera-wasm-web@4.0.1`, unpacked (dictionary separate) | 1.9 MB |
+
+Lindera does ship a wasm build, but the dictionary is large enough that it is
+published as separate packages per dictionary and target. Vibrato's dictionaries
+run to hundreds of megabytes. Jagger has no wasm precedent that we could find
+and is distributed under a triple licence from a university site rather than a
+package registry.
+
+Engine plus smallest model, js-vaporetto is around 325 KB — roughly a fortieth
+of the Lindera equivalent. **For a Japanese tokenizer that actually runs in a
+browser, Vaporetto is close to the only practical option**, and that is the gap
+this project fills.
+
+### When to use something else
+
+We would rather you pick the right tool than pick ours.
+
+| what you are doing | use | why |
+|---|---|---|
+| **Full-text search indexing** | **Sudachi** or **Lindera** | Segmentation has to be consistent. Vaporetto's is not — see the warning above. Sudachi also normalizes orthographic variants and offers A/B/C split granularity. |
+| Embedding in a Rust search engine | **Lindera** | The de-facto choice; Meilisearch, Quickwit and Tantivy build on it. |
+| Migrating from MeCab | **Vibrato** | MeCab-compatible output, and existing IPADIC / UniDic dictionaries work unchanged. |
+| Bulk preprocessing where throughput dominates | **Jagger** | Reported at several times Vaporetto's speed. Check the licence and its tendency toward long morphemes. |
+| Maximum accuracy, research | **Juman++** / **KWJA** | Slower, but that is not the constraint there. |
+| Python, server side | **fugashi** / **SudachiPy** | Wheels are prebuilt; nothing to compile. Note that the original SudachiPy was archived in 2022 and the current package is a binding to the Rust `sudachi.rs`. |
+| **Browser, wasm, edge** | **js-vaporetto** | Small model, light dependencies. |
+| Node.js server with no size constraint | **Lindera** (`lindera-nodejs`) | Native bindings, no wasm overhead, consistent segmentation. |
+
+For scale, crates.io downloads over the 90 days to 2026-07-26: lindera 558,129,
+vaporetto 55,993, crawdad 14,244, vibrato 13,259. Lindera is where the Rust
+ecosystem is; Vaporetto is where the size-constrained deployments are — its
+reverse dependencies include `qdrant-edge` (the edge build of the Qdrant vector
+database), `vaporetto_tantivy` and
+[sqlite-vaporetto](https://github.com/hotchpotch/sqlite-vaporetto).
+
+Sizes and download counts above were measured against the npm and crates.io APIs
+on the date given. Comparative accuracy and speed claims for other tokenizers
+are from their own documentation and papers; only the js-vaporetto numbers in
+this README were measured here.
 
 ## Install
 

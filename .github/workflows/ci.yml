@@ -25,6 +25,9 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo fmt --check
       - run: cargo clippy --all-targets --all-features -- -D warnings
+      # README.md and README.ja.md are translations of each other; catch a
+      # section added to one and forgotten in the other.
+      - run: ./scripts/check-readme-sync.sh
 
   build:
     name: build (${{ matrix.os }})

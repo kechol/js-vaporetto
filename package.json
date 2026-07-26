@@ -59,7 +59,8 @@
     "test:bun": "bun test tests/bun.test.ts",
     "test:browser": "node tests/browser/run.mjs chromium",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "lint": "cargo clippy --all-targets --all-features -- -D warnings && cargo fmt --check"
+    "lint": "cargo clippy --all-targets --all-features -- -D warnings && cargo fmt --check && ./scripts/check-readme-sync.sh",
+    "check:readme": "./scripts/check-readme-sync.sh"
   },
   "devDependencies": {
     "playwright": "^1.62.0",
