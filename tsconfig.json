@@ -14,7 +14,8 @@
     "allowJs": true,
     "checkJs": false,
     "types": [],
-    "baseUrl": ".",
+    // No baseUrl: TypeScript 7 removed it, and "paths" resolves relative to
+    // this file without it.
     "paths": {
       "js-vaporetto": [
         "./dist/types/index.d.ts"

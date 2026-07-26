@@ -96,7 +96,7 @@
   },
   "devDependencies": {
     "playwright": "^1.62.0",
-    "typescript": "^5.9.3",
+    "typescript": "^7.0.2",
     "wrangler": "^4.114.0"
   },
   "engines": {
