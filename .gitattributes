@@ -1,0 +1,12 @@
+# The artifacts under dist/ are compared byte-for-byte in CI, and the hashes in
+# dist/BUILD_INFO are computed from the working-tree files, so the checkout has
+# to be identical on every platform. Without this, Git for Windows checks out
+# CRLF by default and the hashes stop matching.
+* text=auto eol=lf
+
+# Never touched by the line-ending machinery.
+*.wasm binary
+*.model binary
+*.zst binary
+*.tar.gz binary
+*.png binary
