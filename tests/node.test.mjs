@@ -15,7 +15,19 @@ const cases = createSuite({
 
 for (const { name, fn } of cases) test(name, () => fn(asserts));
 
-test("using releases the tokenizer on scope exit", async () => {
-  const { usingReleasesOnScopeExit } = await import("./using.mjs");
-  usingReleasesOnScopeExit({ Vaporetto, model: read("tiny.model"), asserts });
-});
+// `using` is syntax, so an engine without explicit resource management fails to
+// parse the module rather than failing at the call. Probe by importing, and
+// skip rather than fail — Node only gained support in 24, and the library
+// itself works fine without it.
+let usingModule = null;
+try {
+  usingModule = await import("./using.mjs");
+} catch {
+  // engine does not support `using`
+}
+
+test(
+  "using releases the tokenizer on scope exit",
+  { skip: usingModule ? false : "engine does not support `using` (Node 24+ required)" },
+  () => usingModule.usingReleasesOnScopeExit({ Vaporetto, model: read("tiny.model"), asserts }),
+);

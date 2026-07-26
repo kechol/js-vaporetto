@@ -6,7 +6,13 @@ rust-version = "1.85"
 license = "MIT OR Apache-2.0"
 description = "Unofficial WebAssembly bindings for the Vaporetto Japanese tokenizer"
 repository = "https://github.com/kechol/js-vaporetto"
+homepage = "https://github.com/kechol/js-vaporetto#readme"
 readme = "README.md"
+keywords = ["japanese", "tokenizer", "wasm", "vaporetto", "nlp"]
+categories = ["text-processing", "wasm"]
+# Not published to crates.io: this crate is a cdylib whose only consumer is the
+# generated JavaScript in dist/. Anyone wanting Vaporetto from Rust should
+# depend on the `vaporetto` crate directly.
 publish = false
 
 [lib]

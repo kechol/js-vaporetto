@@ -20,13 +20,22 @@ source is not vendored here. The exact version is available at runtime as
 ```ts
 import { Vaporetto } from "js-vaporetto";
 
-using tokenizer = Vaporetto.fromModel(modelBytes);
+const tokenizer = Vaporetto.fromModel(modelBytes);
 
 tokenizer.tokenizeToString("今深海魚を数えたところだ");
 // "今 深海 魚 を 数え た ところ だ"
 
 tokenizer.tokenize("今深海魚を数えたところだ");
 // [{ surface: "今", start: 0, end: 1, tags: [] }, ...]
+
+tokenizer.free();
+```
+
+On an engine with explicit resource management you can let the scope do it —
+see [Errors and lifetime](#errors-and-lifetime):
+
+```ts
+using tokenizer = Vaporetto.fromModel(modelBytes);
 ```
 
 ## Read this before you build anything on it
@@ -125,8 +134,9 @@ bun add github:kechol/js-vaporetto#v0.1.0
 import { Vaporetto } from "js-vaporetto";
 import { readFileSync } from "node:fs";
 
-using tokenizer = Vaporetto.fromModel(readFileSync("./bccwj-suw+unidic_pos+pron.model"));
+const tokenizer = Vaporetto.fromModel(readFileSync("./bccwj-suw+unidic_pos+pron.model"));
 console.log(tokenizer.tokenizeToString("今深海魚を数えたところだ"));
+tokenizer.free();
 ```
 
 ### Deno
@@ -135,7 +145,7 @@ console.log(tokenizer.tokenizeToString("今深海魚を数えたところだ"));
 import { Vaporetto } from "https://raw.githubusercontent.com/kechol/js-vaporetto/v0.1.0/dist/deno/vaporetto.js";
 
 const model = await Deno.readFile("./bccwj-suw+unidic_pos+pron.model");
-using tokenizer = Vaporetto.fromModel(model);
+using tokenizer = Vaporetto.fromModel(model); // Deno 2 supports `using`
 console.log(tokenizer.tokenizeToString("今深海魚を数えたところだ"));
 ```
 
@@ -360,6 +370,11 @@ so tokens may span a newline. This matches the official python-vaporetto.
   than crashing the module.
 * `free()` and `[Symbol.dispose]()` are idempotent, so `using` composes safely
   with an explicit `free()`.
+* The `using` *statement* is optional sugar and needs an engine with explicit
+  resource management: Node 24+, Deno 2+, Bun 1.3+ or a current browser. **The
+  library itself never uses it** — it only provides the `[Symbol.dispose]()`
+  method, which exists as far back as Node 20. On older engines call `free()`,
+  or `[Symbol.dispose]()`, directly; nothing else changes.
 * `predictTags: true` against a model with no tag data returns empty `tags`
   rather than throwing, matching upstream Vaporetto. `fromKyteaModel` forces
   `predictTags` to false because KyTea models carry no tag data.
@@ -431,11 +446,12 @@ than that per process.
 
 Only versions actually exercised are listed. Everything except the Vite row runs
 in CI on every push; the Vite integration was verified manually (build plus a
-Chromium run of the built output).
+Chromium run of the built output). Node 20 reached end of life upstream on
+2026-04-30 — it is tested because `engines` claims it, not as a recommendation.
 
 | runtime | version | export condition | target |
 |---|---|---|---|
-| Node.js | 22.x, 24.x LTS | `node` | `dist/node` (CommonJS) |
+| Node.js | 20.x, 22.x, 24.x | `node` | `dist/node` (CommonJS). `using` needs 24+ |
 | Deno | 2.x | `deno` | `dist/deno` |
 | Bun | 1.3.x | `bun` | `dist/node` |
 | Chromium | Playwright stable | — | `dist/web` |

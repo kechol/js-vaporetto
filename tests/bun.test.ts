@@ -17,7 +17,15 @@ const cases = createSuite({
 
 for (const { name, fn } of cases) test(name, () => fn(asserts));
 
-test("using releases the tokenizer on scope exit", async () => {
-  const { usingReleasesOnScopeExit } = await import("./using.mjs");
-  usingReleasesOnScopeExit({ Vaporetto, model: read("tiny.model"), asserts });
-});
+// See the comment in node.test.mjs: `using` is syntax, so probe by importing
+// and skip rather than fail on engines without it.
+let usingModule = null;
+try {
+  usingModule = await import("./using.mjs");
+} catch {
+  // engine does not support `using`
+}
+
+test.skipIf(!usingModule)("using releases the tokenizer on scope exit", () =>
+  usingModule.usingReleasesOnScopeExit({ Vaporetto, model: read("tiny.model"), asserts }),
+);

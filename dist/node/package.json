@@ -1,17 +1,3 @@
 {
-  "name": "js-vaporetto",
-  "description": "Unofficial WebAssembly bindings for the Vaporetto Japanese tokenizer",
-  "version": "0.1.0",
-  "license": "MIT OR Apache-2.0",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/kechol/js-vaporetto"
-  },
-  "files": [
-    "js_vaporetto_bg.wasm",
-    "js_vaporetto.js",
-    "js_vaporetto.d.ts"
-  ],
-  "main": "js_vaporetto.js",
-  "types": "js_vaporetto.d.ts"
+  "//": "Pins this directory to CommonJS; the root package is ESM."
 }

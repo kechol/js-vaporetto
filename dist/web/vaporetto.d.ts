@@ -1,3 +1,4 @@
+/// <reference lib="esnext.disposable" />
 export * from "./js_vaporetto.js";
 export { default, initSync } from "./js_vaporetto.js";
 export declare const VAPORETTO_VERSION: string;

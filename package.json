@@ -1,13 +1,29 @@
 {
   "name": "js-vaporetto",
   "version": "0.1.0",
-  "private": true,
   "description": "Unofficial WebAssembly bindings for the Vaporetto Japanese tokenizer",
-  "license": "MIT OR Apache-2.0",
+  "keywords": [
+    "japanese",
+    "tokenizer",
+    "morphological-analysis",
+    "word-segmentation",
+    "nlp",
+    "vaporetto",
+    "wasm",
+    "webassembly",
+    "deno",
+    "bun"
+  ],
+  "homepage": "https://github.com/kechol/js-vaporetto#readme",
+  "bugs": {
+    "url": "https://github.com/kechol/js-vaporetto/issues"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/kechol/js-vaporetto.git"
   },
+  "license": "MIT OR Apache-2.0",
+  "author": "Kazuyuki SUZUKI <kechol@users.noreply.github.com>",
   "type": "module",
   "exports": {
     ".": {
@@ -36,18 +52,25 @@
     },
     "./package.json": "./package.json"
   },
+  "main": "./dist/node/vaporetto.js",
+  "module": "./dist/bundler/vaporetto.js",
+  "browser": "./dist/bundler/vaporetto.js",
   "types": "./dist/types/index.d.ts",
   "files": [
     "dist",
     "LICENSE-APACHE",
     "LICENSE-MIT",
     "NOTICE",
-    "README.md"
+    "README.md",
+    "README.ja.md"
   ],
   "sideEffects": [
     "./dist/bundler/js_vaporetto.js",
+    "./dist/bundler/vaporetto.js",
     "./dist/web/js_vaporetto.js",
-    "./dist/deno/js_vaporetto.js"
+    "./dist/web/vaporetto.js",
+    "./dist/deno/js_vaporetto.js",
+    "./dist/deno/vaporetto.js"
   ],
   "scripts": {
     "setup": "./scripts/setup-toolchain.sh",
@@ -57,16 +80,17 @@
     "test:node": "node --test tests/node.test.mjs",
     "test:deno": "deno test --allow-read tests/deno.test.ts",
     "test:bun": "bun test tests/bun.test.ts",
-    "test:browser": "node tests/browser/run.mjs chromium",
+    "test:browser": "node tests/browser/run.mjs chromium firefox",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "cargo clippy --all-targets --all-features -- -D warnings && cargo fmt --check && ./scripts/check-docs.sh",
-    "check:readme": "./scripts/check-docs.sh"
+    "check:docs": "./scripts/check-docs.sh",
+    "prepublishOnly": "echo \"js-vaporetto is distributed from GitHub, not npm. Remove this guard deliberately if that changes.\" >&2 && exit 1"
   },
   "devDependencies": {
     "playwright": "^1.62.0",
     "typescript": "^5.9.3"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=20"
   }
 }

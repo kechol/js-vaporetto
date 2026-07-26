@@ -86,7 +86,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: ["22", "24"] # the two maintained LTS lines
+        # 24 is active LTS, 22 is in maintenance. 20 is EOL upstream but the
+        # library still runs there, and engines says >=20, so keep it honest.
+        node: ["20", "22", "24"]
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v4

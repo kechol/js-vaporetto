@@ -17,7 +17,18 @@ for (const { name, fn } of cases) {
   Deno.test(name, () => fn(asserts));
 }
 
-Deno.test("using releases the tokenizer on scope exit", async () => {
-  const { usingReleasesOnScopeExit } = await import("./using.mjs");
-  usingReleasesOnScopeExit({ Vaporetto, model: await read("tiny.model"), asserts });
+// See the comment in node.test.mjs: `using` is syntax, so probe by importing
+// and skip rather than fail on engines without it.
+let usingModule = null;
+try {
+  usingModule = await import("./using.mjs");
+} catch {
+  // engine does not support `using`
+}
+
+Deno.test({
+  name: "using releases the tokenizer on scope exit",
+  ignore: !usingModule,
+  fn: async () =>
+    usingModule.usingReleasesOnScopeExit({ Vaporetto, model: await read("tiny.model"), asserts }),
 });

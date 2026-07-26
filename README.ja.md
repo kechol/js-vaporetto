@@ -20,13 +20,22 @@ WebAssembly バインディング。ブラウザ・Node.js・Deno・Bun で動�
 ```ts
 import { Vaporetto } from "js-vaporetto";
 
-using tokenizer = Vaporetto.fromModel(modelBytes);
+const tokenizer = Vaporetto.fromModel(modelBytes);
 
 tokenizer.tokenizeToString("今深海魚を数えたところだ");
 // "今 深海 魚 を 数え た ところ だ"
 
 tokenizer.tokenize("今深海魚を数えたところだ");
 // [{ surface: "今", start: 0, end: 1, tags: [] }, ...]
+
+tokenizer.free();
+```
+
+明示的リソース管理に対応したエンジンなら、スコープに任せられます
+（[エラーとライフタイム](#エラーとライフタイム) を参照）。
+
+```ts
+using tokenizer = Vaporetto.fromModel(modelBytes);
 ```
 
 ## 使う前に読んでほしいこと
@@ -118,8 +127,9 @@ bun add github:kechol/js-vaporetto#v0.1.0
 import { Vaporetto } from "js-vaporetto";
 import { readFileSync } from "node:fs";
 
-using tokenizer = Vaporetto.fromModel(readFileSync("./bccwj-suw+unidic_pos+pron.model"));
+const tokenizer = Vaporetto.fromModel(readFileSync("./bccwj-suw+unidic_pos+pron.model"));
 console.log(tokenizer.tokenizeToString("今深海魚を数えたところだ"));
+tokenizer.free();
 ```
 
 ### Deno
@@ -128,7 +138,7 @@ console.log(tokenizer.tokenizeToString("今深海魚を数えたところだ"));
 import { Vaporetto } from "https://raw.githubusercontent.com/kechol/js-vaporetto/v0.1.0/dist/deno/vaporetto.js";
 
 const model = await Deno.readFile("./bccwj-suw+unidic_pos+pron.model");
-using tokenizer = Vaporetto.fromModel(model);
+using tokenizer = Vaporetto.fromModel(model); // Deno 2 は using に対応している
 console.log(tokenizer.tokenizeToString("今深海魚を数えたところだ"));
 ```
 
@@ -347,6 +357,11 @@ sqlite-vaporetto とは異なり、js-vaporetto は `SplitLinebreaksFilter` を*
   `null pointer passed to rust` の例外になります。
 * `free()` と `[Symbol.dispose]()` は冪等です。`using` と明示的な `free()` を
   併用しても問題ありません。
+* `using` **文**は任意の糖衣で、明示的リソース管理に対応したエンジンが必要です
+  （Node 24+ / Deno 2+ / Bun 1.3+ / 最近のブラウザ）。**ライブラリ本体は using を
+  一切使っていません。** 提供しているのは `[Symbol.dispose]()` メソッドだけで、
+  これは Node 20 にも存在します。古いエンジンでは `free()` か `[Symbol.dispose]()` を
+  直接呼べば済み、他に違いはありません。
 * タグ予測データを持たないモデルに `predictTags: true` を指定した場合、例外ではなく
   空の `tags` が返ります。上流 Vaporetto の挙動に合わせています。KyTea モデルは
   タグデータを持たないため、`fromKyteaModel` は `predictTags` を強制的に false にします。
@@ -413,10 +428,12 @@ wasm が 8.6% 増え、モデル読込がおよそ 2 倍（+1,050 ms）になる
 
 実際に動かしたバージョンだけを載せています。Vite の行以外は push のたびに CI で実行されます。
 Vite 連携は手動で検証しました（ビルドと、ビルド結果の Chromium 実行）。
+Node 20 は上流で 2026-04-30 に EOL を迎えています。`engines` が対応を謳っている以上
+テストしているというだけで、推奨という意味ではありません。
 
 | ランタイム | バージョン | export 条件 | ターゲット |
 |---|---|---|---|
-| Node.js | 22.x, 24.x LTS | `node` | `dist/node`（CommonJS） |
+| Node.js | 20.x, 22.x, 24.x | `node` | `dist/node`（CommonJS）。`using` は 24+ が必要 |
 | Deno | 2.x | `deno` | `dist/deno` |
 | Bun | 1.3.x | `bun` | `dist/node` |
 | Chromium | Playwright stable | — | `dist/web` |
