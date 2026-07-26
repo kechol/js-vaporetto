@@ -1,0 +1,70 @@
+js-vaporetto
+Copyright (c) 2026 kechol
+
+This product is licensed under either of
+
+  * Apache License, Version 2.0 (see LICENSE-APACHE)
+  * MIT license (see LICENSE-MIT)
+
+at your option.
+
+--------------------------------------------------------------------------------
+This is an unofficial, community-maintained project. It is not affiliated with
+or endorsed by daac-tools.
+--------------------------------------------------------------------------------
+
+This product depends on and is derived from work by third parties.
+
+
+Vaporetto
+---------
+https://github.com/daac-tools/vaporetto
+
+    Copyright (c) 2021-2026 Koichi Akabe <vbkaisetsu@gmail.com> and the
+    Vaporetto contributors
+
+    Licensed under either of
+
+      * Apache License, Version 2.0
+      * MIT license
+
+    at your option.
+
+The crates `vaporetto` and `vaporetto_rules` (version 0.6.5) are used as
+dependencies from crates.io. Their source is not vendored into this repository.
+
+
+python-vaporetto
+----------------
+https://github.com/daac-tools/python-vaporetto
+
+    Copyright (c) 2022-2026 Koichi Akabe <vbkaisetsu@gmail.com> and the
+    python-vaporetto contributors
+
+    Licensed under either of Apache License, Version 2.0, or MIT license,
+    at your option.
+
+Consulted as a reference implementation. The strategy of predicting on the
+normalized text and transferring only the resulting boundaries and tags back to
+a second `Sentence` built from the original text is adapted from its
+`src/lib.rs`.
+
+
+sqlite-vaporetto
+----------------
+https://github.com/hotchpotch/sqlite-vaporetto
+
+    Licensed under either of Apache License, Version 2.0, or MIT license,
+    at your option.
+
+Consulted as a reference implementation for calling Vaporetto 0.6.5. The
+mapping from `wsconst` characters (D/R/H/T/K/O/G) to `vaporetto_rules` sentence
+filters, and the overall shape of the offset-reconstruction loop, are adapted
+from its `src/lib.rs`. Attribution is repeated inline at each adapted function.
+
+
+Test fixture corpus
+-------------------
+`tests/fixtures/corpus.tok` is an original composition written for this project
+and is covered by the same dual license as the rest of this repository. No
+third-party corpus is redistributed here. See `tests/fixtures/README.md`.

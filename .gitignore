@@ -1,0 +1,7 @@
+/target
+node_modules/
+
+# Build outputs under dist/ ARE committed on purpose — this package is
+# installed straight from GitHub and is never published to npm.
+# wasm-pack drops a `.gitignore` containing `*` into each --out-dir; remove it.
+!/dist
