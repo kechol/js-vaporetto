@@ -26,8 +26,12 @@ jobs:
         with:
           deno-version: vx.x.x
 
+      # tmp/bin has to go on GITHUB_PATH, not just this step's PATH: later
+      # steps run `npm run test:rust`, which invokes wasm-pack.
       - name: Install pinned toolchain
-        run: ./scripts/setup-toolchain.sh
+        run: |
+          ./scripts/setup-toolchain.sh
+          echo "$PWD/tmp/bin" >> "$GITHUB_PATH"
 
       # --- Everything that could make a release wrong is checked before we
       # --- publish anything. A tag is cheap to delete; a Release that people

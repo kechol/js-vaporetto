@@ -47,15 +47,18 @@ jobs:
       - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2, at 2.9.1
 
       # bash is available on the Windows runner, so one script covers all three.
+      # Putting tmp/bin on GITHUB_PATH once makes it visible to every later
+      # step; exporting it inside each step instead is what let release.yml
+      # reach `npm run test:rust` with no wasm-pack on PATH.
       - name: Install pinned toolchain
         shell: bash
-        run: ./scripts/setup-toolchain.sh
+        run: |
+          ./scripts/setup-toolchain.sh
+          echo "$PWD/tmp/bin" >> "$GITHUB_PATH"
 
       - name: Build all targets
         shell: bash
-        run: |
-          export PATH="$PWD/tmp/bin:$PATH"
-          ./scripts/build.sh
+        run: ./scripts/build.sh
 
       # Shared with release.yml so the two cannot drift; see the script for
       # why the .wasm is excluded from the comparison.
@@ -65,9 +68,7 @@ jobs:
 
       - name: Rust wasm tests
         shell: bash
-        run: |
-          export PATH="$PWD/tmp/bin:$PATH"
-          wasm-pack test --node
+        run: wasm-pack test --node
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: matrix.os == 'ubuntu-latest'
