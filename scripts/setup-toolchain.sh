@@ -65,8 +65,11 @@ fetch() { curl -sSLf -o "$2" "$1"; }
 if [ ! -x "$BIN/wasm-pack$EXE" ]; then
   echo "installing wasm-pack $WASM_PACK_VERSION ($RUST_TRIPLE)"
   fetch "https://github.com/wasm-bindgen/wasm-pack/releases/download/v$WASM_PACK_VERSION/wasm-pack-v$WASM_PACK_VERSION-$RUST_TRIPLE.tar.gz" "$BIN/wp.tar.gz"
-  tar xzf "$BIN/wp.tar.gz" --strip-components=1 -C "$BIN" "*/wasm-pack$EXE"
-  rm -f "$BIN/wp.tar.gz"
+  # Extract everything and delete the extras rather than passing a glob:
+  # GNU tar needs --wildcards for pattern arguments and BSD tar does not
+  # accept that flag, so there is no spelling that works on both.
+  tar xzf "$BIN/wp.tar.gz" --strip-components=1 -C "$BIN"
+  rm -f "$BIN/wp.tar.gz" "$BIN/README.md" "$BIN/LICENSE-APACHE" "$BIN/LICENSE-MIT"
 fi
 
 if [ ! -x "$BIN/wasm-bindgen$EXE" ]; then
