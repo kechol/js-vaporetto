@@ -5,6 +5,10 @@ node_modules/
 # picks up scratch hosts from local experiments.
 deno.lock
 
+# `wrangler dev` writes its local workerd state next to the config it was
+# started with, i.e. inside tests/workers/.
+.wrangler/
+
 # Build outputs under dist/ ARE committed on purpose — this package is
 # installed straight from GitHub and is never published to npm.
 # wasm-pack drops a `.gitignore` containing `*` into each --out-dir; remove it.

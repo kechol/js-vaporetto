@@ -1,0 +1,12 @@
+{
+  // Test-only Worker. Nothing here is deployed; `wrangler dev --local` runs it
+  // on workerd, which is the point — the failure this guards against (the
+  // bundler target's wasm import shape) only shows up on the real runtime.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "js-vaporetto-tests",
+  "main": "worker.mjs",
+  "compatibility_date": "2025-01-01",
+  // Model fixtures are bytes, not modules. Without this they would be parsed
+  // as JavaScript. `.wasm` keeps wrangler's built-in CompiledWasm rule.
+  "rules": [{ "type": "Data", "globs": ["**/*.model", "**/*.zst"], "fallthrough": true }]
+}

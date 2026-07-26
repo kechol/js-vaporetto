@@ -5,6 +5,7 @@ import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 import { chromium, firefox, webkit } from "playwright";
+import { report } from "../report.mjs";
 
 const ROOT = new URL("../..", import.meta.url).pathname;
 const TYPES = {
@@ -47,10 +48,7 @@ for (const name of names) {
   const results = await page.evaluate(() => globalThis.__results);
   await browser.close();
 
-  const bad = results.filter((r) => !r.ok);
-  failed += bad.length;
-  for (const r of bad) console.error(`  FAIL ${name}: ${r.name}\n       ${r.error}`);
-  console.log(`${name}: ${results.length - bad.length}/${results.length} passed`);
+  failed += report(name, results);
 }
 
 server.close();

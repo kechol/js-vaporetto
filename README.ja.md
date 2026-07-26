@@ -168,6 +168,55 @@ import 許可とは別に `--allow-net` が必要です。`raw.githubusercontent
 [リリース](https://github.com/kechol/js-vaporetto/releases) に `web` ターゲット一式の
 zip を添付しています。
 
+### Cloudflare Workers
+
+`workerd` の export 条件は、wasm モジュールの初期化を済ませたターゲットに解決されます。
+await するものはなく、プラグインも要りません。必要な設定は、モデルファイルがバイト列で
+あることを Wrangler に伝えることだけです。
+
+```js
+import { Vaporetto } from "js-vaporetto";
+import model from "./tiny.model";
+
+export default {
+  fetch() {
+    const tokenizer = Vaporetto.fromModel(new Uint8Array(model));
+    try {
+      return new Response(tokenizer.tokenizeToString("今深海魚を数えたところだ"));
+    } finally {
+      tokenizer.free();
+    }
+  },
+};
+```
+
+```jsonc
+// wrangler.jsonc
+{
+  "rules": [{ "type": "Data", "globs": ["**/*.model"], "fallthrough": true }]
+}
+```
+
+Wrangler は import された `.wasm` を `WebAssembly.Module` にコンパイルします。これは
+wasm-bindgen の同期初期化関数がそのまま受け取れる形です。他のターゲットはここでは
+起動できません。`node` はファイルシステムを必要とし、`web` と `deno` は相対 URL から
+`.wasm` を fetch し、`bundler` は起動時に `wasm2.__wbindgen_start is not a function`
+で落ちます。
+
+使えるモデルを決めるプラットフォーム側の制限が 2 つあります。どちらもこのバインディングの
+側では回避できません。
+
+* **Worker のサイズ。** 小さいモデルでなければ Worker に同梱できません。上の例で使っている
+  フィクスチャモデルは 1 KB ですが、配布モデルは数十 MB あり、Worker のサイズ上限を大きく
+  超えます。その場合は R2 や KV から実行時に取得し、バイト列を `fromModel` に渡してください。
+* **モデルの読み込み時間。** 56 MB の `bccwj-suw+unidic_pos+pron` を workerd で読み込むと
+  1,231 ms かかりました（3 回計測の最小値、M シリーズ Mac の `wrangler dev --local`。
+  ローカル実行はデプロイ先のメモリ・CPU・サイズの制限を一切強制しないので、これは所要時間で
+  あって、そのサイズのモデルがデプロイできる証拠ではありません）。起動時の CPU 予算を
+  はるかに超えるので、読み込みは `fetch()` の中で行い、トークナイザをモジュールスコープの
+  変数に保持して同じ isolate の後続リクエストで使い回してください。トークナイズ自体は
+  影響を受けません（同じ計測で 1,100 文字あたり 1 ms）。
+
 ### Vite
 
 既定の export 条件は `bundler` ターゲットに解決され、これは `.wasm` を素の ESM import で
@@ -228,6 +277,7 @@ import { Vaporetto } from "js-vaporetto/node";     // CommonJS、.wasm をディ
 import { Vaporetto } from "js-vaporetto/deno";     // ESM、.wasm を fetch
 import init, { Vaporetto } from "js-vaporetto/web";     // ESM、init の await が必要
 import { Vaporetto } from "js-vaporetto/bundler";  // ESM、.wasm を import
+import { Vaporetto } from "js-vaporetto/workers";  // ESM、import 時に初期化済み
 ```
 
 ## モデルは同梱していません
@@ -444,6 +494,7 @@ Node 20 は上流で 2026-04-30 に EOL を迎えています。`engines` が対
 | Node.js | 20.x, 22.x, 24.x | `node` | `dist/node`（CommonJS）。`using` は 24+ が必要 |
 | Deno | 2.x | `deno` | `dist/deno` |
 | Bun | 1.3.x | `bun` | `dist/node` |
+| Cloudflare Workers | Wrangler 4.x 経由の workerd | `workerd` | `dist/workers` |
 | Chromium | Playwright stable | — | `dist/web` |
 | Firefox | Playwright stable | — | `dist/web` |
 | Vite | 7.3.x | `browser` / `default` | `dist/bundler`（`vite-plugin-wasm` 必要）または `dist/web` |

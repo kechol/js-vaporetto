@@ -28,6 +28,7 @@
   "exports": {
     ".": {
       "types": "./dist/types/index.d.ts",
+      "workerd": "./dist/workers/vaporetto.js",
       "deno": "./dist/deno/vaporetto.js",
       "bun": "./dist/node/vaporetto.js",
       "browser": "./dist/bundler/vaporetto.js",
@@ -37,6 +38,10 @@
     "./web": {
       "types": "./dist/web/vaporetto.d.ts",
       "default": "./dist/web/vaporetto.js"
+    },
+    "./workers": {
+      "types": "./dist/workers/vaporetto.d.ts",
+      "default": "./dist/workers/vaporetto.js"
     },
     "./node": {
       "types": "./dist/node/vaporetto.d.ts",
@@ -69,17 +74,20 @@
     "./dist/bundler/vaporetto.js",
     "./dist/web/js_vaporetto.js",
     "./dist/web/vaporetto.js",
+    "./dist/workers/vaporetto.js",
     "./dist/deno/js_vaporetto.js",
     "./dist/deno/vaporetto.js"
   ],
   "scripts": {
     "setup": "./scripts/setup-toolchain.sh",
     "build": "./scripts/build.sh",
-    "test": "npm run test:rust && npm run test:node && npm run test:deno && npm run test:bun && npm run test:browser",
+    "test": "npm run test:rust && npm run test:exports && npm run test:node && npm run test:deno && npm run test:bun && npm run test:workers && npm run test:browser",
     "test:rust": "wasm-pack test --node",
+    "test:exports": "node --test tests/exports.test.mjs",
     "test:node": "node --test tests/node.test.mjs",
     "test:deno": "deno test --allow-read tests/deno.test.ts",
     "test:bun": "bun test tests/bun.test.ts",
+    "test:workers": "node tests/workers/run.mjs",
     "test:browser": "node tests/browser/run.mjs chromium firefox",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "cargo clippy --all-targets --all-features -- -D warnings && cargo fmt --check && ./scripts/check-docs.sh",
@@ -88,7 +96,8 @@
   },
   "devDependencies": {
     "playwright": "^1.62.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "wrangler": "^4.114.0"
   },
   "engines": {
     "node": ">=20"

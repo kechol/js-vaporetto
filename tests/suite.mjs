@@ -61,6 +61,25 @@ export const asserts = {
 };
 
 /**
+ * Runs the cases and collects the outcome instead of throwing, for runtimes
+ * with no test framework to report to — the browser page and the Worker, which
+ * both have to serialize results back to the process that started them.
+ *
+ * @param {Array<{name: string, fn: Function}>} cases
+ * @returns {Array<{name: string, ok: boolean, error?: string}>}
+ */
+export function runCases(cases) {
+  return cases.map(({ name, fn }) => {
+    try {
+      fn(asserts);
+      return { name, ok: true };
+    } catch (e) {
+      return { name, ok: false, error: String(e && e.message) };
+    }
+  });
+}
+
+/**
  * @param {object} ctx
  * @param {any} ctx.Vaporetto        the exported class
  * @param {Uint8Array} ctx.model     tests/fixtures/tiny.model

@@ -4,7 +4,7 @@
 <pre id="log"></pre>
 <script type="module">
   import init, { Vaporetto, VAPORETTO_VERSION, JS_VAPORETTO_VERSION } from "/dist/web/vaporetto.js";
-  import { asserts, createSuite } from "/tests/suite.mjs";
+  import { asserts, createSuite, runCases } from "/tests/suite.mjs";
 
   const results = [];
   try {
@@ -20,14 +20,7 @@
       jsVaporettoVersion: JS_VAPORETTO_VERSION,
     });
 
-    for (const { name, fn } of cases) {
-      try {
-        fn(asserts);
-        results.push({ name, ok: true });
-      } catch (e) {
-        results.push({ name, ok: false, error: String(e && e.message) });
-      }
-    }
+    results.push(...runCases(cases));
 
     // `using` is syntax, so an engine without explicit resource management
     // fails at import time rather than at call time.
