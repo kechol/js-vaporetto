@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-07-26
+
+Initial release.
+
 ### Added
 
 - WebAssembly bindings for Vaporetto 0.6.5, built for four targets:
@@ -25,41 +29,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the start, middle and end of a sentence, with and without
   normalization.
 - `free()` and `[Symbol.dispose]()`, both idempotent, so `using`
-  composes safely with an explicit `free()`.
+  composes safely with an explicit `free()`. The library itself never
+  uses `using`, so it runs as far back as Node 20.
 - Hand-written TypeScript declarations, so no part of the public API is
   typed `any` or `JsValue`.
 - `VAPORETTO_VERSION` and `JS_VAPORETTO_VERSION` as plain constants.
+- Input validation on every entry point: malformed model bytes, a NUL
+  character in the text, an unrecognized `wsConst` character and a
+  non-array argument to `tokenizeBatch` all raise catchable errors and
+  leave the tokenizer usable.
 - A test model trained from an original corpus committed in
   `tests/fixtures/`, with the training script and the rationale for every
   line of the corpus.
 - Benchmark harness, including a comparison against the official
   python-vaporetto.
 
-### Fixed
-
-- `tokenizeBatch` now rejects a non-array argument instead of silently
-  mis-tokenizing it. Passing `null` or `undefined` previously threw from
-  inside the wasm-bindgen borrow guard, which then stayed stuck: every
-  later call on that tokenizer, including `free()`, failed permanently
-  and leaked its wasm memory.
-- `fromCompressedModel` caps decompression at 256 MiB, so a crafted or
-  corrupt zstd buffer fails with a clear error instead of exhausting
-  memory.
-
-### Removed
-
-- The internal `__vaporettoVersion()` / `__jsVaporettoVersion()` wasm
-  exports. Nothing called them — the build reads the versions from
-  `Cargo.toml` — and they showed up in the published type declarations.
-
 ### Security
 
-- The toolchain installer verifies a recorded sha256 for every archive it
-  downloads and refuses to unpack anything that does not match, or any
-  platform with no recorded hash. Pinning a version alone does not help
-  here: a GitHub release asset can be replaced without the tag moving.
-- Third-party GitHub Actions are pinned to commit SHAs rather than tags,
-  which can be repointed at different code.
+- `fromCompressedModel` caps decompression at 256 MiB, so a crafted or
+  corrupt zstd buffer fails with a clear error rather than exhausting
+  memory. The largest distributed model is ~56 MB uncompressed.
+- Because `dist/` ships prebuilt binaries, how they were produced matters:
+  the toolchain installer verifies a recorded sha256 for every archive it
+  downloads and refuses any platform with no recorded hash, and every
+  third-party GitHub Action is pinned to a commit SHA rather than a tag.
 
 ### Notes
 
@@ -78,4 +71,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rather than a descriptive error. It is catchable and the module stays
   usable, but model files should be treated as trusted input.
 
-[Unreleased]: https://github.com/kechol/js-vaporetto/commits/main
+[Unreleased]: https://github.com/kechol/js-vaporetto/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/kechol/js-vaporetto/releases/tag/v0.1.0
