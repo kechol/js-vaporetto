@@ -71,6 +71,34 @@ for target in "${TARGETS[@]}"; do
   echo "   wasm ${before} -> ${after} bytes"
 done
 
+# --- deno: tolerate a wrong Content-Type -------------------------------------
+# wasm-pack's deno target calls WebAssembly.instantiateStreaming(fetch(url))
+# with no fallback, and instantiateStreaming rejects anything not served as
+# application/wasm. raw.githubusercontent.com — the import URL this project
+# documents — serves .wasm as application/octet-stream, so the generated glue
+# fails there with "Invalid WebAssembly content type". The web target already
+# has this fallback; the deno target does not, so patch it in.
+python3 - "dist/deno/js_vaporetto.js" <<'PATCH'
+import sys
+
+path = sys.argv[1]
+src = open(path, encoding="utf-8").read()
+old = ("const wasmInstantiated = await WebAssembly.instantiateStreaming"
+       "(fetch(wasmUrl), __wbg_get_imports());")
+new = """const wasmResponse = await fetch(wasmUrl);
+// instantiateStreaming requires `application/wasm`; raw.githubusercontent.com
+// and other static hosts serve .wasm as application/octet-stream. Patched in
+// by scripts/build.sh — wasm-pack's deno target ships no fallback.
+const wasmInstantiated = wasmResponse.headers.get("content-type") === "application/wasm"
+    ? await WebAssembly.instantiateStreaming(wasmResponse, __wbg_get_imports())
+    : await WebAssembly.instantiate(await wasmResponse.arrayBuffer(), __wbg_get_imports());"""
+if old not in src:
+    if "wasmResponse" in src:
+        sys.exit(0)  # already patched
+    sys.exit("deno glue does not contain the expected instantiateStreaming call")
+open(path, "w", encoding="utf-8").write(src.replace(old, new, 1))
+PATCH
+
 # --- entry wrappers ----------------------------------------------------------
 VERSION_BLOCK_ESM="export const VAPORETTO_VERSION = \"$VAPORETTO_VERSION\";
 export const JS_VAPORETTO_VERSION = \"$JS_VERSION\";"

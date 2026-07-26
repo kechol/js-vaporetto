@@ -34,6 +34,9 @@ Initial release.
 - Hand-written TypeScript declarations, so no part of the public API is
   typed `any` or `JsValue`.
 - `VAPORETTO_VERSION` and `JS_VAPORETTO_VERSION` as plain constants.
+- The Deno raw-URL import works against hosts that do not serve `.wasm`
+  as `application/wasm`, which includes `raw.githubusercontent.com` —
+  the URL this project documents.
 - Input validation on every entry point: malformed model bytes, a NUL
   character in the text, an unrecognized `wsConst` character and a
   non-array argument to `tokenizeBatch` all raise catchable errors and

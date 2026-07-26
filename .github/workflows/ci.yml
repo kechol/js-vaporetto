@@ -175,15 +175,19 @@ jobs:
         with:
           deno-version: vx.x.x
 
-      # Section 5.3 of the spec: importing dist/deno/vaporetto.js from a raw
-      # URL must work. Against a pushed tag that URL is
-      # raw.githubusercontent.com; here we serve the same files over HTTP so
-      # the check also runs on pull requests, where no tag exists yet.
-      # Both need --allow-net because the glue fetches the .wasm at runtime.
+      # Importing dist/deno/vaporetto.js from a raw URL must work. Against a
+      # pushed tag that URL is raw.githubusercontent.com; here the same files
+      # are served locally so the check also runs on pull requests, where no
+      # tag exists yet. --allow-net is needed because the glue fetches the
+      # .wasm at runtime.
       - name: Import over HTTP
         run: |
           set -eux
-          python3 -m http.server 8731 --bind 127.0.0.1 &
+          # Serves .wasm as application/octet-stream, exactly as
+          # raw.githubusercontent.com does. Python's own http.server reports
+          # application/wasm, which is what let a Deno import that fails
+          # against the real URL pass this check.
+          python3 tests/serve-like-raw-github.py 8731 &
           for _ in $(seq 1 30); do curl -sf http://127.0.0.1:8731/ >/dev/null && break; sleep 0.5; done
           cat > /tmp/remote.ts <<'EOF'
           import { Vaporetto, VAPORETTO_VERSION } from "http://127.0.0.1:8731/dist/deno/vaporetto.js";

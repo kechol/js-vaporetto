@@ -439,7 +439,13 @@ const cachedTextEncoder = new TextEncoder();
 let WASM_VECTOR_LEN = 0;
 
 const wasmUrl = new URL('js_vaporetto_bg.wasm', import.meta.url);
-const wasmInstantiated = await WebAssembly.instantiateStreaming(fetch(wasmUrl), __wbg_get_imports());
+const wasmResponse = await fetch(wasmUrl);
+// instantiateStreaming requires `application/wasm`; raw.githubusercontent.com
+// and other static hosts serve .wasm as application/octet-stream. Patched in
+// by scripts/build.sh — wasm-pack's deno target ships no fallback.
+const wasmInstantiated = wasmResponse.headers.get("content-type") === "application/wasm"
+    ? await WebAssembly.instantiateStreaming(wasmResponse, __wbg_get_imports())
+    : await WebAssembly.instantiate(await wasmResponse.arrayBuffer(), __wbg_get_imports());
 const wasmInstance = wasmInstantiated.instance;
 const wasm = wasmInstance.exports;
 wasm.__wbindgen_start();
