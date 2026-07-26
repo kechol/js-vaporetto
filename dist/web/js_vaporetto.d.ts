@@ -74,7 +74,7 @@ export interface InitOutput {
     readonly vaporetto_fromKyteaModel: (a: number, b: number, c: number) => [number, number, number];
     readonly vaporetto_fromModel: (a: number, b: number, c: number) => [number, number, number];
     readonly vaporetto_tokenize: (a: number, b: number, c: number) => [number, number, number];
-    readonly vaporetto_tokenizeBatch: (a: number, b: number, c: number) => [number, number, number];
+    readonly vaporetto_tokenizeBatch: (a: number, b: any) => [number, number, number];
     readonly vaporetto_tokenizeToString: (a: number, b: number, c: number) => [number, number, number, number];
     readonly __wbindgen_malloc: (a: number, b: number) => number;
     readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
