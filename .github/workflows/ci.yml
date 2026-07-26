@@ -27,7 +27,7 @@ jobs:
       - run: cargo clippy --all-targets --all-features -- -D warnings
       # README.md and README.ja.md are translations of each other; catch a
       # section added to one and forgotten in the other.
-      - run: ./scripts/check-readme-sync.sh
+      - run: ./scripts/check-docs.sh
 
   build:
     name: build (${{ matrix.os }})

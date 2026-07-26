@@ -16,7 +16,7 @@ export class Vaporetto {
         wasm.__wbg_vaporetto_free(ptr, 0);
     }
     /**
-     * zstd 圧縮されたモデルから生成する。
+     * Creates a tokenizer from a zstd-compressed model.
      * @param {Uint8Array} model
      * @param {VaporettoOptions | null} [options]
      * @returns {Vaporetto}
@@ -31,7 +31,7 @@ export class Vaporetto {
         return Vaporetto.__wrap(ret[0]);
     }
     /**
-     * KyTea モデルから生成する。タグ予測は非対応。
+     * Creates a tokenizer from a KyTea model. Tag prediction is not supported.
      * @param {Uint8Array} model
      * @param {Omit<VaporettoOptions, "predictTags"> | null} [options]
      * @returns {Vaporetto}
@@ -46,7 +46,7 @@ export class Vaporetto {
         return Vaporetto.__wrap(ret[0]);
     }
     /**
-     * 非圧縮の Vaporetto モデルから生成する。
+     * Creates a tokenizer from an uncompressed Vaporetto model.
      * @param {Uint8Array} model
      * @param {VaporettoOptions | null} [options]
      * @returns {Vaporetto}
@@ -61,7 +61,7 @@ export class Vaporetto {
         return Vaporetto.__wrap(ret[0]);
     }
     /**
-     * トークン列を返す。`start` / `end` は UTF-16 コード単位。
+     * Tokenizes `text`. `start` and `end` are UTF-16 code unit offsets.
      * @param {string} text
      * @returns {Token[]}
      */
@@ -75,7 +75,10 @@ export class Vaporetto {
         return takeFromExternrefTable0(ret[0]);
     }
     /**
-     * 文字列コピーのオーバーヘッドを償却するためのバッチ版。
+     * Batched form of `tokenize`.
+     *
+     * Measured against a real model this is not faster than calling `tokenize`
+     * in a loop; see the benchmark section of the README before reaching for it.
      * @param {string[]} texts
      * @returns {Token[][]}
      */
@@ -87,8 +90,8 @@ export class Vaporetto {
         return takeFromExternrefTable0(ret[0]);
     }
     /**
-     * 分かち書き結果を文字列で返す。区切りは半角スペース。
-     * タグ予測が有効なときはタグが `/` 区切りで付く。
+     * Returns the tokenization as a string, tokens separated by a single
+     * space. With tag prediction enabled, tags follow each token after a `/`.
      * @param {string} text
      * @returns {string}
      */
@@ -116,7 +119,7 @@ export class Vaporetto {
 if (Symbol.dispose) Vaporetto.prototype[Symbol.dispose] = Vaporetto.prototype.free;
 
 /**
- * js-vaporetto 自身のバージョン（ラッパ生成用）。
+ * Version of js-vaporetto itself. Used to generate the JS wrapper.
  * @returns {string}
  */
 export function __jsVaporettoVersion() {
@@ -133,7 +136,8 @@ export function __jsVaporettoVersion() {
 }
 
 /**
- * 依存している Vaporetto のバージョン（ラッパ生成用）。
+ * Version of the Vaporetto crate this was built against. Used to generate the
+ * JS wrapper.
  * @returns {string}
  */
 export function __vaporettoVersion() {

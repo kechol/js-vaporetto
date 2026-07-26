@@ -1,18 +1,22 @@
-//! js-vaporetto — Vaporetto 0.6.5 の非公式 WebAssembly バインディング。
+//! js-vaporetto — unofficial WebAssembly bindings for Vaporetto 0.6.5.
 //!
-//! 設計メモ（Rust に不慣れな読み手向け）:
+//! Design notes, for the parts that are not obvious from the code:
 //!
-//! * `Sentence` は `Predictor` を借用するため構造体のフィールドとして保持できない。
-//!   よって呼び出しごとに生成する。sqlite-vaporetto が同じ方針で動作実績がある。
-//! * 正規化を有効にすると、予測は「正規化後テキスト」で行い、結果の境界とタグだけを
-//!   「元テキスト」の `Sentence` に転写する（python-vaporetto と同じ方式）。
-//!   こうすると表層文字列が常に元テキスト由来になり、`write_tokenized_text` の
-//!   エスケープ規則も上流の実装をそのまま使える。
-//! * この転写が成立するのは `KyteaFullwidthFilter` が「1 文字 → 1 文字」を保つため。
-//!   全 Unicode スカラ値 1,112,064 個で実測して確認済み。将来この前提が崩れたときに
-//!   黙ってオフセットがずれないよう、転写前に文字数の一致を明示的に検証している。
-//! * Vaporetto の `Token::start()/end()` は Unicode コードポイント単位だが、JS の
-//!   `String.prototype.slice()` は UTF-16 コード単位なので、境界で変換する。
+//! * `Sentence` borrows `Predictor`, so it cannot be held as a struct field.
+//!   It is therefore built per call. sqlite-vaporetto does the same and works.
+//! * With normalization on, prediction runs on the *normalized* text and only
+//!   the resulting boundaries and tags are transferred onto a `Sentence` built
+//!   from the *original* text (the approach python-vaporetto takes). That keeps
+//!   token surfaces in the original text and lets us reuse upstream's
+//!   `write_tokenized_text` escaping rules verbatim.
+//! * The transfer is only valid because `KyteaFullwidthFilter` maps one
+//!   character to exactly one character. That was verified empirically over all
+//!   1,112,064 Unicode scalar values. Should the assumption ever break, the
+//!   character counts are compared before the transfer so it fails loudly
+//!   instead of silently shifting every offset.
+//! * Vaporetto reports `Token::start()/end()` in Unicode code points, while
+//!   JavaScript's `String.prototype.slice()` indexes UTF-16 code units, so the
+//!   two are converted at the boundary.
 
 use core::fmt::Display;
 
@@ -26,30 +30,31 @@ use vaporetto_rules::{
 use wasm_bindgen::prelude::*;
 
 // -----------------------------------------------------------------------------
-// TypeScript の型
+// TypeScript types
 //
-// 自動生成される .d.ts だけだと引数・戻り値が `any` / `JsValue` になるので、
-// interface をここで宣言し、下の extern ブロックで各メソッドに結びつける。
+// The auto-generated .d.ts would type arguments and return values as `any` or
+// `JsValue`, so the interfaces are declared here and bound to each method
+// through the extern block below.
 // -----------------------------------------------------------------------------
 
 #[wasm_bindgen(typescript_custom_section)]
 const TS_APPEND_CONTENT: &'static str = r#"
 export interface VaporettoOptions {
-  /** 品詞・読みなどのタグを予測する。既定 false */
+  /** Predict part-of-speech / reading tags. Default false. */
   predictTags?: boolean;
-  /** 指定した文字種を分割しない。"D"|"R"|"H"|"T"|"K"|"O"|"G" の組み合わせ（例 "DGR"）。既定 "" */
+  /** Character classes not to segment: any combination of "D R H T K O G" (e.g. "DGR"). Default "". */
   wsConst?: string;
-  /** 入力を事前に正規化する。既定 true */
+  /** Normalize the input before prediction. Default true. */
   normalize?: boolean;
 }
 
 export interface Token {
   surface: string;
-  /** 入力文字列における UTF-16 コード単位のオフセット（開始・含む） */
+  /** Offset into the input string, in UTF-16 code units (inclusive). */
   start: number;
-  /** 同（終了・含まない） */
+  /** Same, exclusive. */
   end: number;
-  /** predictTags が false のときは空配列 */
+  /** Empty array when predictTags is false. */
   tags: (string | null)[];
 }
 "#;
@@ -73,28 +78,30 @@ extern "C" {
 }
 
 // -----------------------------------------------------------------------------
-// バージョン
+// Versions
 //
-// wasm-bindgen は const をエクスポートできず、--target web では初期化が非同期なので
-// モジュール読み込み時点で wasm 側の値を読むこともできない。よって
-// VAPORETTO_VERSION / JS_VAPORETTO_VERSION はビルド時に生成する JS ラッパ側で
-// プレーンな定数として定義する。ここはその生成元。
+// wasm-bindgen cannot export constants, and with --target web the wasm module
+// is initialized asynchronously, so the values cannot be read from wasm at
+// module load time either. VAPORETTO_VERSION and JS_VAPORETTO_VERSION are
+// therefore defined as plain constants in the JS wrapper that scripts/build.sh
+// generates; these functions are what it reads them from.
 // -----------------------------------------------------------------------------
 
-/// 依存している Vaporetto のバージョン（ラッパ生成用）。
+/// Version of the Vaporetto crate this was built against. Used to generate the
+/// JS wrapper.
 #[wasm_bindgen(js_name = __vaporettoVersion)]
 pub fn vaporetto_version() -> String {
     vaporetto::VERSION.to_string()
 }
 
-/// js-vaporetto 自身のバージョン（ラッパ生成用）。
+/// Version of js-vaporetto itself. Used to generate the JS wrapper.
 #[wasm_bindgen(js_name = __jsVaporettoVersion)]
 pub fn js_vaporetto_version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
 }
 
 // -----------------------------------------------------------------------------
-// 内部型
+// Internal types
 // -----------------------------------------------------------------------------
 
 fn to_js_error<E: Display>(e: E) -> JsError {
@@ -106,10 +113,11 @@ fn init_panic_hook() {
     console_error_panic_hook::set_once();
 }
 
-// NOTE: `deny_unknown_fields` は付けていない。serde-wasm-bindgen は既知のフィールド名を
-// Reflect::get で引くだけで JS オブジェクトのキーを列挙しないため、指定しても効かない。
-// 未知のキーを黙って無視するのは JS の慣例どおりであり、TypeScript 利用者は
-// VaporettoOptions の型でコンパイル時に検出できる。値の型違いは検出される。
+// NOTE: `deny_unknown_fields` is deliberately absent. serde-wasm-bindgen looks
+// up known field names with Reflect::get and never enumerates the JS object's
+// keys, so the attribute would have no effect. Ignoring unknown keys is the JS
+// convention anyway, and TypeScript users get compile-time checking from the
+// VaporettoOptions type. Wrong value types are still rejected.
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 struct Options {
@@ -129,7 +137,7 @@ impl Default for Options {
 }
 
 impl Options {
-    /// `undefined` / `null` は既定値として扱う。
+    /// `undefined` and `null` are treated as "use the defaults".
     fn from_js(value: Option<JsValue>) -> Result<Self, JsError> {
         match value {
             None => Ok(Self::default()),
@@ -139,9 +147,9 @@ impl Options {
     }
 }
 
-/// JS に返すトークン。struct を JS クラスとして公開すると解放が
-/// FinalizationRegistry 頼みの非決定的なものになるので、プレーンオブジェクトに
-/// シリアライズして返す。
+/// A token as returned to JS. Exposing the struct as a JS class would make its
+/// release depend on FinalizationRegistry and therefore non-deterministic, so
+/// it is serialized to a plain object instead.
 #[derive(Serialize)]
 struct TokenOut {
     surface: String,
@@ -151,16 +159,17 @@ struct TokenOut {
 }
 
 fn to_js_value<T: Serialize>(value: &T) -> Result<JsValue, JsError> {
-    // 既定では None が undefined になってしまう。TS 型は (string | null)[] なので
-    // null で出す。
+    // By default None would serialize to undefined. The TS type is
+    // (string | null)[], so emit null.
     let serializer = serde_wasm_bindgen::Serializer::new().serialize_missing_as_null(true);
     value.serialize(&serializer).map_err(to_js_error)
 }
 
-/// Unicode コードポイント索引 → UTF-16 コード単位オフセット の変換。
+/// Converts a Unicode code point index into a UTF-16 code unit offset.
 ///
-/// 日本語テキストはほぼ全て BMP 内に収まり、その場合は両者が一致するので
-/// テーブルを作らない。サロゲートペアが 1 文字でもあるときだけ確保する。
+/// Japanese text is almost entirely inside the BMP, where the two indices are
+/// identical, so no table is built. It is only allocated when the input
+/// contains at least one surrogate pair.
 enum Utf16Map {
     Identity,
     Table(Vec<u32>),
@@ -184,8 +193,9 @@ impl Utf16Map {
     fn at(&self, char_index: usize) -> u32 {
         match self {
             Self::Identity => char_index as u32,
-            // char_index は Token::start()/end() 由来なので必ず範囲内。ただし wasm は
-            // panic = abort でモジュール全体が死ぬため、添字アクセスでは落とさない。
+            // char_index comes from Token::start()/end() and is always in range.
+            // Even so, do not index directly: in wasm a panic aborts the whole
+            // module, taking every other tokenizer instance with it.
             Self::Table(table) => table
                 .get(char_index)
                 .copied()
@@ -194,12 +204,13 @@ impl Utf16Map {
     }
 }
 
-/// wsConst の文字列から post filter を組み立てる。
+/// Builds the post filters from a wsConst string.
 ///
-/// D/R/H/T/K/O/G のマッピングは sqlite-vaporetto の `build_post_filters()`
-/// (https://github.com/hotchpotch/sqlite-vaporetto, MIT OR Apache-2.0) から。
-/// ただし sqlite-vaporetto が無条件で先頭に積む `SplitLinebreaksFilter` は
-/// 積んでいない。公式バインディングの python-vaporetto がそうしていないため。
+/// The D/R/H/T/K/O/G mapping is adapted from sqlite-vaporetto's
+/// `build_post_filters()` (https://github.com/hotchpotch/sqlite-vaporetto,
+/// MIT OR Apache-2.0). Unlike that implementation we do not unconditionally
+/// prepend `SplitLinebreaksFilter`, because the official python-vaporetto
+/// binding does not either.
 fn build_post_filters(ws_const: &str) -> Result<Vec<Box<dyn SentenceFilter>>, JsError> {
     let mut filters: Vec<Box<dyn SentenceFilter>> = Vec::new();
     for c in ws_const.chars() {
@@ -222,7 +233,7 @@ fn build_post_filters(ws_const: &str) -> Result<Vec<Box<dyn SentenceFilter>>, Js
 }
 
 // -----------------------------------------------------------------------------
-// 公開 API
+// Public API
 // -----------------------------------------------------------------------------
 
 #[wasm_bindgen]
@@ -236,7 +247,7 @@ pub struct Vaporetto {
 
 #[wasm_bindgen]
 impl Vaporetto {
-    /// 非圧縮の Vaporetto モデルから生成する。
+    /// Creates a tokenizer from an uncompressed Vaporetto model.
     #[wasm_bindgen(js_name = fromModel)]
     pub fn from_model(
         model: &[u8],
@@ -244,14 +255,14 @@ impl Vaporetto {
     ) -> Result<Vaporetto, JsError> {
         init_panic_hook();
         let options = Options::from_js(options.map(Into::into))?;
-        // Model::read_slice ではなく Model::read を使う。前者は先頭 25 バイトを
-        // 境界チェックなしにスライスするため、空の Uint8Array で panic する。
-        // &[u8] は io::Read を実装しているので、後者なら安全に Err が返る。
+        // Model::read, not Model::read_slice. The latter slices the first 25
+        // bytes without a bounds check and panics on an empty Uint8Array.
+        // &[u8] implements io::Read, so this path returns Err instead.
         let model = Model::read(model).map_err(to_js_error)?;
         Self::build(model, options)
     }
 
-    /// KyTea モデルから生成する。タグ予測は非対応。
+    /// Creates a tokenizer from a KyTea model. Tag prediction is not supported.
     #[wasm_bindgen(js_name = fromKyteaModel)]
     pub fn from_kytea_model(
         model: &[u8],
@@ -259,14 +270,14 @@ impl Vaporetto {
     ) -> Result<Vaporetto, JsError> {
         init_panic_hook();
         let mut options = Options::from_js(options.map(Into::into))?;
-        // KyTea モデルはタグ予測データを持たない。python-vaporetto も同様に強制 false。
+        // KyTea models carry no tag data. python-vaporetto forces this too.
         options.predict_tags = false;
         let kytea_model = vaporetto::KyteaModel::read(model).map_err(to_js_error)?;
         let model = Model::try_from(kytea_model).map_err(to_js_error)?;
         Self::build(model, options)
     }
 
-    /// zstd 圧縮されたモデルから生成する。
+    /// Creates a tokenizer from a zstd-compressed model.
     #[cfg(feature = "zstd")]
     #[wasm_bindgen(js_name = fromCompressedModel)]
     pub fn from_compressed_model(
@@ -277,8 +288,8 @@ impl Vaporetto {
 
         init_panic_hook();
         let options = Options::from_js(options.map(Into::into))?;
-        // ruzstd 0.8 に decode_all のようなフリー関数は無い。
-        // sqlite-vaporetto の load_model_from_bytes() と同じ StreamingDecoder を使う。
+        // ruzstd 0.8 has no free function like decode_all; use the same
+        // StreamingDecoder that sqlite-vaporetto's load_model_from_bytes() does.
         let mut decoder = ruzstd::decoding::StreamingDecoder::new(model).map_err(to_js_error)?;
         let mut buf = Vec::new();
         decoder.read_to_end(&mut buf).map_err(to_js_error)?;
@@ -286,13 +297,16 @@ impl Vaporetto {
         Self::build(model, options)
     }
 
-    /// トークン列を返す。`start` / `end` は UTF-16 コード単位。
+    /// Tokenizes `text`. `start` and `end` are UTF-16 code unit offsets.
     pub fn tokenize(&self, text: &str) -> Result<TokenArray, JsError> {
         let tokens = self.collect_tokens(text)?;
         Ok(to_js_value(&tokens)?.into())
     }
 
-    /// 文字列コピーのオーバーヘッドを償却するためのバッチ版。
+    /// Batched form of `tokenize`.
+    ///
+    /// Measured against a real model this is not faster than calling `tokenize`
+    /// in a loop; see the benchmark section of the README before reaching for it.
     #[wasm_bindgen(js_name = tokenizeBatch)]
     pub fn tokenize_batch(&self, texts: &StringArray) -> Result<TokenArrayArray, JsError> {
         // Pull one string across at a time instead of letting wasm-bindgen
@@ -311,8 +325,8 @@ impl Vaporetto {
         Ok(JsValue::from(output).into())
     }
 
-    /// 分かち書き結果を文字列で返す。区切りは半角スペース。
-    /// タグ予測が有効なときはタグが `/` 区切りで付く。
+    /// Returns the tokenization as a string, tokens separated by a single
+    /// space. With tag prediction enabled, tags follow each token after a `/`.
     #[wasm_bindgen(js_name = tokenizeToString)]
     pub fn tokenize_to_string(&self, text: &str) -> Result<String, JsError> {
         if text.is_empty() {
@@ -339,7 +353,7 @@ impl Vaporetto {
     }
 
     fn collect_tokens(&self, text: &str) -> Result<Vec<TokenOut>, JsError> {
-        // Sentence::from_raw("") は Err になるので、空入力はここで打ち切る。
+        // Sentence::from_raw("") returns Err, so bail out on empty input here.
         if text.is_empty() {
             return Ok(Vec::new());
         }
@@ -351,7 +365,7 @@ impl Vaporetto {
                 surface: token.surface().to_string(),
                 start: utf16.at(token.start()),
                 end: utf16.at(token.end()),
-                // タグ予測が無効なら n_tags == 0 で、この slice は空になる。
+                // With tag prediction off, n_tags == 0 and this slice is empty.
                 tags: token
                     .tags()
                     .iter()
@@ -361,10 +375,10 @@ impl Vaporetto {
             .collect())
     }
 
-    /// 元テキストに対応する、予測済みの `Sentence` を作る。
+    /// Builds a predicted `Sentence` that corresponds to the original text.
     ///
-    /// 返り値の `Sentence<'a, 'a>` は `&'a self`（= `Predictor`）と `text` の
-    /// 両方を借用するので、呼び出し元のスコープ内でしか生きられない。
+    /// The returned `Sentence<'a, 'a>` borrows both `&'a self` (for the
+    /// `Predictor`) and `text`, so it cannot outlive the caller's scope.
     fn predict<'a>(&'a self, text: &'a str) -> Result<Sentence<'a, 'a>, JsError> {
         let mut sentence = Sentence::from_raw(text).map_err(to_js_error)?;
 
@@ -382,9 +396,10 @@ impl Vaporetto {
         let normalized = self.prefilter.filter(text);
         let mut norm_sentence = Sentence::from_raw(normalized).map_err(to_js_error)?;
 
-        // 1 文字 → 1 文字 が崩れると、以降の境界転写が黙ってずれる。
-        // copy_from_slice / clone_from_slice の panic に頼らず、ここで
-        // 捕捉可能なエラーにする。
+        // If the one-character-to-one-character mapping ever breaks, every
+        // offset after the transfer silently shifts. Catch it here and return a
+        // real error rather than relying on copy_from_slice / clone_from_slice
+        // to panic.
         if norm_sentence.boundaries().len() != sentence.boundaries().len() {
             return Err(JsError::new(
                 "normalization changed the character count; \

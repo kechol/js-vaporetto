@@ -14,15 +14,17 @@ crate-type = ["cdylib", "rlib"]
 
 [features]
 default = ["zstd"]
-# fromCompressedModel を有効にする。解凍は ruzstd で Rust 側で行う。
+# Enables fromCompressedModel. Decompression happens in Rust via ruzstd.
 zstd = ["dep:ruzstd"]
-# daachorse の charwise 版オートマトンを使う。実測（bccwj-suw+unidic_pos+pron,
-# 342k 文字）では tokenize が 5〜8% 速くなる一方、モデル読込が 2 倍（+1,050ms）
-# 遅くなり wasm が +8.6% 大きくなる。損益分岐は約 4,500 万文字なので既定は無効。
-# 長時間動かすサーバ用途で大量に処理する場合のみ有効にする価値がある。
+# Uses daachorse's charwise automaton. Measured against
+# bccwj-suw+unidic_pos+pron over 342k characters, tokenization gets 5-8%
+# faster while model loading takes twice as long (+1,050 ms) and the wasm
+# grows 8.6%. Break-even is around 45 million characters per model load, so
+# this is off by default; only worth enabling for a long-lived server process
+# that tokenizes far more than that.
 charwise-pma = ["vaporetto/charwise-pma"]
-# panic を "unreachable" ではなく読めるスタックトレースにする。
-# サイズが増えるのでリリースビルドでは有効にしない。
+# Turns a wasm panic from "unreachable" into a readable stack trace.
+# Increases size, so do not enable it for release builds.
 console_error_panic_hook = ["dep:console_error_panic_hook"]
 
 [dependencies]
@@ -33,10 +35,11 @@ js-sys = "0.3.103"
 ruzstd = { version = "0.8", optional = true }
 console_error_panic_hook = { version = "0.1.7", optional = true }
 
-# 0.6.5 の default features は
+# The default features of vaporetto 0.6.5 are
 #   ["std", "cache-type-score", "fix-weight-length", "tag-prediction", "charwise-pma"]
-# ここではそれに kytea（KyteaModel::read に必須）を足したものを明示指定している。
-# train は liblinear(C) を引くので wasm では絶対に有効化しない。
+# This list is those minus charwise-pma (see the [features] section above) plus
+# kytea, which KyteaModel::read requires. Never enable train for wasm: it pulls
+# in liblinear, which builds C sources.
 [dependencies.vaporetto]
 version = "=0.6.5"
 default-features = false
@@ -60,8 +63,8 @@ lto = true
 codegen-units = 1
 panic = "abort"
 
-# wasm-pack が同梱する wasm-opt は binaryen version_117 (2024-02-28) にハードコードされており、
-# Cargo.toml からバージョンを固定する手段が存在しない。よってここでは無効化し、
-# ビルドスクリプト側で固定バージョンの wasm-opt を明示的に実行する。
+# The wasm-opt that wasm-pack ships is hardcoded to binaryen version_117
+# (released 2024-02-28), and Cargo.toml offers no way to pin a different one.
+# So it is disabled here and scripts/build.sh runs a pinned wasm-opt instead.
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = false

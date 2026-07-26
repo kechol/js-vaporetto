@@ -2,21 +2,21 @@
 /* eslint-disable */
 
 export interface VaporettoOptions {
-    /** 品詞・読みなどのタグを予測する。既定 false */
+    /** Predict part-of-speech / reading tags. Default false. */
     predictTags?: boolean;
-    /** 指定した文字種を分割しない。"D"|"R"|"H"|"T"|"K"|"O"|"G" の組み合わせ（例 "DGR"）。既定 "" */
+    /** Character classes not to segment: any combination of "D R H T K O G" (e.g. "DGR"). Default "". */
     wsConst?: string;
-    /** 入力を事前に正規化する。既定 true */
+    /** Normalize the input before prediction. Default true. */
     normalize?: boolean;
 }
 
 export interface Token {
     surface: string;
-    /** 入力文字列における UTF-16 コード単位のオフセット（開始・含む） */
+    /** Offset into the input string, in UTF-16 code units (inclusive). */
     start: number;
-    /** 同（終了・含まない） */
+    /** Same, exclusive. */
     end: number;
-    /** predictTags が false のときは空配列 */
+    /** Empty array when predictTags is false. */
     tags: (string | null)[];
 }
 
@@ -27,39 +27,43 @@ export class Vaporetto {
     free(): void;
     [Symbol.dispose](): void;
     /**
-     * zstd 圧縮されたモデルから生成する。
+     * Creates a tokenizer from a zstd-compressed model.
      */
     static fromCompressedModel(model: Uint8Array, options?: VaporettoOptions | null): Vaporetto;
     /**
-     * KyTea モデルから生成する。タグ予測は非対応。
+     * Creates a tokenizer from a KyTea model. Tag prediction is not supported.
      */
     static fromKyteaModel(model: Uint8Array, options?: Omit<VaporettoOptions, "predictTags"> | null): Vaporetto;
     /**
-     * 非圧縮の Vaporetto モデルから生成する。
+     * Creates a tokenizer from an uncompressed Vaporetto model.
      */
     static fromModel(model: Uint8Array, options?: VaporettoOptions | null): Vaporetto;
     /**
-     * トークン列を返す。`start` / `end` は UTF-16 コード単位。
+     * Tokenizes `text`. `start` and `end` are UTF-16 code unit offsets.
      */
     tokenize(text: string): Token[];
     /**
-     * 文字列コピーのオーバーヘッドを償却するためのバッチ版。
+     * Batched form of `tokenize`.
+     *
+     * Measured against a real model this is not faster than calling `tokenize`
+     * in a loop; see the benchmark section of the README before reaching for it.
      */
     tokenizeBatch(texts: string[]): Token[][];
     /**
-     * 分かち書き結果を文字列で返す。区切りは半角スペース。
-     * タグ予測が有効なときはタグが `/` 区切りで付く。
+     * Returns the tokenization as a string, tokens separated by a single
+     * space. With tag prediction enabled, tags follow each token after a `/`.
      */
     tokenizeToString(text: string): string;
 }
 
 /**
- * js-vaporetto 自身のバージョン（ラッパ生成用）。
+ * Version of js-vaporetto itself. Used to generate the JS wrapper.
  */
 export function __jsVaporettoVersion(): string;
 
 /**
- * 依存している Vaporetto のバージョン（ラッパ生成用）。
+ * Version of the Vaporetto crate this was built against. Used to generate the
+ * JS wrapper.
  */
 export function __vaporettoVersion(): string;
 
