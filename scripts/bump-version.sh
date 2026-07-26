@@ -107,7 +107,8 @@ done
 
 if [ "$BUILD" -eq 1 ]; then
   echo "rebuilding dist/ (the version is baked into the wrappers)"
-  if ! command -v wasm-pack > /dev/null && [ -x "$ROOT/tmp/bin/wasm-pack" ]; then
+  case "$(uname -s)" in MINGW* | MSYS* | CYGWIN*) EXE=".exe" ;; *) EXE="" ;; esac
+  if ! command -v wasm-pack > /dev/null && [ -x "$ROOT/tmp/bin/wasm-pack$EXE" ]; then
     PATH="$ROOT/tmp/bin:$PATH"
     export PATH
   fi

@@ -1,0 +1,14 @@
+# Pinned for the same reason wasm-pack, wasm-bindgen and binaryen are pinned:
+# dist/ is committed and CI rebuilds it, failing on any difference. A different
+# rustc emits different wasm, so "stable" would break the committed artifacts
+# the moment upstream cuts a release — CI was on 1.97.1 while this was built
+# with 1.95.0.
+#
+# To bump: change the channel here, rebuild dist/ with it, and commit both in
+# the same change. If you use mise or another tool that sets RUSTUP_TOOLCHAIN,
+# that env var wins over this file — keep the two in agreement.
+[toolchain]
+channel = "1.95.0"
+components = ["clippy", "rustfmt"]
+targets = ["wasm32-unknown-unknown"]
+profile = "minimal"

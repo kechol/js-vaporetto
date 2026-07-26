@@ -23,31 +23,60 @@ WASM_PACK_VERSION="0.15.0"
 BINARYEN_VERSION="version_131"
 WASM_BINDGEN_VERSION="$(grep -A1 '^name = "wasm-bindgen"$' "$ROOT/Cargo.lock" | grep '^version' | head -1 | cut -d'"' -f2)"
 
-case "$(uname -s)-$(uname -m)" in
-  Darwin-arm64)  RUST_TRIPLE="aarch64-apple-darwin";  BINARYEN_ARCH="arm64-macos" ;;
-  Darwin-x86_64) RUST_TRIPLE="x86_64-apple-darwin";   BINARYEN_ARCH="x86_64-macos" ;;
-  Linux-aarch64) RUST_TRIPLE="aarch64-unknown-linux-gnu"; BINARYEN_ARCH="aarch64-linux" ;;
-  Linux-x86_64)  RUST_TRIPLE="x86_64-unknown-linux-gnu";  BINARYEN_ARCH="x86_64-linux" ;;
-  *) echo "unsupported platform: $(uname -s)-$(uname -m)" >&2; exit 1 ;;
+# The three tools use three different naming schemes for the same platform,
+# and none of them can be guessed from the others:
+#
+#   wasm-pack / wasm-bindgen   Rust target triple, but linux is *-musl only
+#                              (there is no x86_64-unknown-linux-gnu asset)
+#   binaryen                   its own short names: x86_64-linux, arm64-macos,
+#                              x86_64-windows
+#
+# On Windows the shell is Git Bash, so `uname -s` reports MINGW64_NT-… and the
+# binaries carry a .exe suffix.
+EXE=""
+case "$(uname -s)" in
+  Darwin) OS=macos ;;
+  Linux)  OS=linux ;;
+  MINGW* | MSYS* | CYGWIN*) OS=windows; EXE=".exe" ;;
+  *) echo "unsupported OS: $(uname -s)" >&2; exit 1 ;;
 esac
+case "$(uname -m)" in
+  arm64 | aarch64) ARCH=aarch64 ;;
+  x86_64 | amd64)  ARCH=x86_64 ;;
+  *) echo "unsupported architecture: $(uname -m)" >&2; exit 1 ;;
+esac
+
+case "$OS-$ARCH" in
+  macos-aarch64)   RUST_TRIPLE="aarch64-apple-darwin";        BINARYEN_ARCH="arm64-macos" ;;
+  macos-x86_64)    RUST_TRIPLE="x86_64-apple-darwin";         BINARYEN_ARCH="x86_64-macos" ;;
+  linux-aarch64)   RUST_TRIPLE="aarch64-unknown-linux-musl";  BINARYEN_ARCH="aarch64-linux" ;;
+  linux-x86_64)    RUST_TRIPLE="x86_64-unknown-linux-musl";   BINARYEN_ARCH="x86_64-linux" ;;
+  windows-x86_64)  RUST_TRIPLE="x86_64-pc-windows-msvc";      BINARYEN_ARCH="x86_64-windows" ;;
+  windows-aarch64) RUST_TRIPLE="";                            BINARYEN_ARCH="arm64-windows" ;;
+  *) echo "unsupported platform: $OS-$ARCH" >&2; exit 1 ;;
+esac
+if [ -z "$RUST_TRIPLE" ]; then
+  echo "no prebuilt wasm-pack/wasm-bindgen for $OS-$ARCH" >&2
+  exit 1
+fi
 
 fetch() { curl -sSLf -o "$2" "$1"; }
 
-if [ ! -x "$BIN/wasm-pack" ]; then
+if [ ! -x "$BIN/wasm-pack$EXE" ]; then
   echo "installing wasm-pack $WASM_PACK_VERSION ($RUST_TRIPLE)"
   fetch "https://github.com/wasm-bindgen/wasm-pack/releases/download/v$WASM_PACK_VERSION/wasm-pack-v$WASM_PACK_VERSION-$RUST_TRIPLE.tar.gz" "$BIN/wp.tar.gz"
-  tar xzf "$BIN/wp.tar.gz" --strip-components=1 -C "$BIN" '*/wasm-pack'
+  tar xzf "$BIN/wp.tar.gz" --strip-components=1 -C "$BIN" "*/wasm-pack$EXE"
   rm -f "$BIN/wp.tar.gz"
 fi
 
-if [ ! -x "$BIN/wasm-bindgen" ]; then
+if [ ! -x "$BIN/wasm-bindgen$EXE" ]; then
   echo "installing wasm-bindgen $WASM_BINDGEN_VERSION ($RUST_TRIPLE)"
   fetch "https://github.com/wasm-bindgen/wasm-bindgen/releases/download/$WASM_BINDGEN_VERSION/wasm-bindgen-$WASM_BINDGEN_VERSION-$RUST_TRIPLE.tar.gz" "$BIN/wb.tar.gz"
   tar xzf "$BIN/wb.tar.gz" --strip-components=1 -C "$BIN"
   rm -f "$BIN/wb.tar.gz" "$BIN/README.md" "$BIN/LICENSE-APACHE" "$BIN/LICENSE-MIT"
 fi
 
-if [ ! -x "$BIN/binaryen-$BINARYEN_VERSION/bin/wasm-opt" ]; then
+if [ ! -x "$BIN/binaryen-$BINARYEN_VERSION/bin/wasm-opt$EXE" ]; then
   echo "installing binaryen $BINARYEN_VERSION ($BINARYEN_ARCH)"
   fetch "https://github.com/WebAssembly/binaryen/releases/download/$BINARYEN_VERSION/binaryen-$BINARYEN_VERSION-$BINARYEN_ARCH.tar.gz" "$BIN/binaryen.tar.gz"
   tar xzf "$BIN/binaryen.tar.gz" -C "$BIN"
@@ -57,8 +86,8 @@ fi
 rustup target add wasm32-unknown-unknown >/dev/null
 
 echo
-"$BIN/wasm-pack" --version
-"$BIN/wasm-bindgen" --version
-"$BIN/binaryen-$BINARYEN_VERSION/bin/wasm-opt" --version
+"$BIN/wasm-pack$EXE" --version
+"$BIN/wasm-bindgen$EXE" --version
+"$BIN/binaryen-$BINARYEN_VERSION/bin/wasm-opt$EXE" --version
 echo
 echo "Add to PATH:  export PATH=\"$BIN:\$PATH\""

@@ -24,10 +24,13 @@ WASM_OPT_ARGS=(-Oz)
 TARGETS=(bundler web nodejs deno)
 
 # --- locate wasm-opt ---------------------------------------------------------
+# On Windows the shell is Git Bash and the binaries carry a .exe suffix.
+case "$(uname -s)" in MINGW* | MSYS* | CYGWIN*) EXE=".exe" ;; *) EXE="" ;; esac
+
 WASM_OPT="${WASM_OPT:-}"
 if [ -z "$WASM_OPT" ]; then
   for candidate in \
-    "$ROOT/tmp/bin/binaryen-$BINARYEN_VERSION/bin/wasm-opt" \
+    "$ROOT/tmp/bin/binaryen-$BINARYEN_VERSION/bin/wasm-opt$EXE" \
     "$(command -v wasm-opt || true)"
   do
     if [ -n "$candidate" ] && [ -x "$candidate" ]; then WASM_OPT="$candidate"; break; fi
