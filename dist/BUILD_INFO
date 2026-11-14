@@ -7,7 +7,7 @@ wasm-opt version 131 (version_131)
 wasm-opt args -Oz
 
 61bfad5807811bafa738fab6cbf79b9b6b818bf2208e3e989fc746fdbebc0eae  src/lib.rs
-c1034beb10c66e9ffdd03443eff2f8865206d6752d63ff2f2657867878ae9cd2  Cargo.toml
-6639c289732bf779b2d7b8226dd0a62664077644f55a120c39d00c6e02bc9f54  Cargo.lock
+878fc02013bd67aa1798670aa0805d59f7cb4a23d26a102296db6dd6bd5653cb  Cargo.toml
+cc1ff9628bc1277b5e7d9e6effafc9aa50c9b3772768210a683ca020fc34f1db  Cargo.lock
 68182d3bca2b1694d6c6ec58be02a6c5bf1d7a9baeda353f6d4310812a0fd16f  rust-toolchain.toml
 dfc6cb88084cae741d8162406c1bd4e8ac41a0d4a1fd23cd60fb00bd56b26468  scripts/build.sh

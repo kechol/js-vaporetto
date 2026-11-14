@@ -12,4 +12,4 @@ if (typeof Symbol.dispose === "symbol") {
 }
 
 export const VAPORETTO_VERSION = "0.7.0";
-export const JS_VAPORETTO_VERSION = "0.2.0";
+export const JS_VAPORETTO_VERSION = "0.3.0";
