@@ -1,0 +1,52 @@
+name: Dependabot auto-merge
+
+# Auto-merge low-risk Dependabot PRs once required status checks pass.
+# Major-version bumps still require manual review (often breaking), and so
+# does a minor bump from 0.x, which Cargo and npm treat as breaking.
+#
+# Prerequisites:
+#   - Settings -> General -> Pull Requests -> "Allow auto-merge" enabled.
+#   - The "default" ruleset on the default branch lists the CI jobs
+#     that auto-merge waits for; without it the merge happens before CI ends.
+
+on: pull_request_target
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    # The pull request's author, not github.actor: the actor is Dependabot
+    # whenever Dependabot pushes to a pull request's head branch, and a fork's
+    # own Dependabot can push to the head of a pull request someone else opened.
+    if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch Dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@v3.1.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Enable auto-merge for safe updates
+        # Every updated dependency is checked, not only the first:
+        # fetch-metadata's previous-version describes the first one alone.
+        # fetch-metadata labels 0.6 -> 0.7 a minor update and 0.0.3 -> 0.0.4 a
+        # patch, so those, majors and anything without a known version are
+        # left to a maintainer.
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          UPDATES: ${{ steps.metadata.outputs.updated-dependencies-json }}
+        run: |
+          if jq -e 'length > 0 and all(.[];
+                (.updateType == "version-update:semver-patch"
+                  and ((.prevVersion // "0.0.") | startswith("0.0.") | not))
+                or (.updateType == "version-update:semver-minor"
+                  and ((.prevVersion // "0.") | startswith("0.") | not)))' \
+                <<<"$UPDATES" >/dev/null; then
+            gh pr merge --auto --squash "$PR_URL"
+          else
+            echo "::notice::Left for a maintainer: a major update, or a minor or 0.0.x update of a 0.x dependency."
+          fi
