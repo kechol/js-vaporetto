@@ -13,9 +13,10 @@ fast pointwise-prediction Japanese tokenizer, for browsers, Node.js, Deno and Bu
 > project is maintained independently and has no connection to the Vaporetto
 > authors. Please do not report js-vaporetto issues to the upstream repository.
 
-Built against **Vaporetto 0.6.5**, used as a crates.io dependency — the upstream
+Built against **Vaporetto 0.7.0**, used as a crates.io dependency — the upstream
 source is not vendored here. The exact version is available at runtime as
-`VAPORETTO_VERSION`.
+`VAPORETTO_VERSION`. It reads models in the Vaporetto 0.7 format only; see
+[Models are not bundled](#models-are-not-bundled).
 
 ```ts
 import { Vaporetto } from "js-vaporetto";
@@ -68,13 +69,14 @@ but no dictionary**, and that is what makes it viable in a browser.
 
 ### Why this exists
 
-For a browser or edge runtime, size decides everything. Measured on
-2026-07-26:
+For a browser or edge runtime, size decides everything. The js-vaporetto and
+Vaporetto rows were measured on 2026-11-14 against Vaporetto 0.7.0, the Lindera
+rows on 2026-07-26:
 
 | | size |
 |---|---:|
-| js-vaporetto engine (`dist/web`, one target) | **316 KB** (127 KB gzipped) |
-| smallest Vaporetto model, `bccwj-suw_c0.003` | **8.9 KB** compressed |
+| js-vaporetto engine (`dist/web`, one target) | **323 KB** (128 KB gzipped) |
+| smallest Vaporetto model, `bccwj-suw_c0.003` | **4.1 KB** compressed |
 | Vaporetto model with POS + reading tags | 6.0 MB compressed |
 | `lindera-wasm-web-ipadic@2.0.0`, unpacked | 13.1 MB |
 | `lindera-wasm-web@4.0.1`, unpacked (dictionary separate) | 1.9 MB |
@@ -85,7 +87,7 @@ run to hundreds of megabytes. Jagger has no wasm precedent that we could find
 and is distributed under a triple licence from a university site rather than a
 package registry.
 
-Engine plus smallest model, js-vaporetto is around 325 KB — roughly a fortieth
+Engine plus smallest model, js-vaporetto is around 327 KB — roughly a fortieth
 of the Lindera equivalent. **For a Japanese tokenizer that actually runs in a
 browser, Vaporetto is close to the only practical option**, and that is the gap
 this project fills.
@@ -219,8 +221,9 @@ this binding can work around:
   the bytes to `fromModel`.
 * **Model load time.** Loading the 56 MB `bccwj-suw+unidic_pos+pron` model on
   workerd took 1,231 ms (best of three, `wrangler dev --local` on an M-series
-  Mac; a local run enforces none of the deployed memory, CPU or size limits, so
-  read this as a timing and not as evidence that such a model deploys). That is
+  Mac, measured with Vaporetto 0.6.5 and its model; a local run enforces none
+  of the deployed memory, CPU or size limits, so read this as a timing and not
+  as evidence that such a model deploys). That is
   far beyond the startup CPU budget, so load inside `fetch()` and keep the
   tokenizer in a module-scope variable for later requests on the same isolate to
   reuse. Tokenizing is unaffected — 1 ms for 1,100 characters in the same run.
@@ -249,7 +252,7 @@ await init(); // the web target initializes the wasm module asynchronously
 const tokenizer = Vaporetto.fromModel(modelBytes);
 ```
 
-Vite emits the `.wasm` as a normal asset (316 KB, 129 KB gzipped) and no config
+Vite emits the `.wasm` as a normal asset (323 KB, 128 KB gzipped) and no config
 change is needed.
 
 **Or keep the default target and add `vite-plugin-wasm`.**
@@ -294,18 +297,31 @@ import { Vaporetto } from "js-vaporetto/workers";  // ESM, initialized on import
 js-vaporetto ships **no model**. Distributed models are derived from corpora with
 their own licence terms, so they are not redistributed here.
 
-Download one from
-[daac-tools/vaporetto-models](https://github.com/daac-tools/vaporetto-models/releases):
+Download one from the
+[Vaporetto 0.7.0 release](https://github.com/daac-tools/vaporetto/releases/tag/v0.7.0):
 
 | model | download | uncompressed | tags |
 |---|---:|---:|---|
-| `bccwj-suw+unidic_pos+pron` | 6.0 MB | 55.8 MB | part of speech + pronunciation |
-| `bccwj-suw+unidic_pos+kana` | 6.1 MB | — | part of speech + kana |
-| `bccwj-suw_c1.0` | 386 KB | — | none |
-| `bccwj-suw_c0.003` | 8.7 KB | — | none (smallest) |
+| `bccwj-suw+unidic_pos+pron` | 6.0 MB | 56.8 MB | part of speech + pronunciation |
+| `bccwj-suw+unidic_pos+kana` | 6.0 MB | — | part of speech + kana |
+| `bccwj-suw_c1.0` | 378 KB | — | none |
+| `bccwj-suw_c0.003` | 8.8 KB | — | none (smallest) |
 
 These are trained on BCCWJ and distributed under BSD-3-Clause; read the `BSD`
-file inside each archive before shipping one.
+file inside each archive before shipping one. The same release also carries
+models trained with spoken language (CSJ) and long-unit-word models.
+
+Vaporetto 0.7 changed the model format. Models for Vaporetto 0.6 and earlier,
+including every release of `daac-tools/vaporetto-models`, fail to load with
+`InvalidModelError: model version mismatch`. Download the 0.7.0 models above, or
+convert an existing model with Vaporetto's `convert_bincode_model`:
+
+```sh
+git clone --branch v0.7.0 https://github.com/daac-tools/vaporetto.git
+cd vaporetto
+cargo run --release -p convert_bincode_model -- \
+  --model-in old.model.zst --model-out new.model.zst
+```
 
 You can also train your own — see
 [`tests/fixtures/README.md`](tests/fixtures/README.md), which documents how the
@@ -443,18 +459,19 @@ so tokens may span a newline. This matches the official python-vaporetto.
 
 ## Benchmarks
 
-Apple M-series, macOS 25.5, Node 24.14.0. Model `bccwj-suw+unidic_pos+pron`
-(55.8 MB uncompressed), input 2,000 lines / 342,395 characters / 224,724 tokens
-from 『吾輩は猫である』 (public domain). Best of three runs. Reproduce with
-`node bench/run.mjs --dist dist/node --model <model> --corpus <file>`.
+Apple M4, macOS 26.7.1, Node 26.12.1, Vaporetto 0.7.0. Model
+`bccwj-suw+unidic_pos+pron` from the Vaporetto 0.7.0 release (56.8 MB
+uncompressed), input 2,000 lines / 342,395 characters / 224,724 tokens from
+『吾輩は猫である』 (public domain). Best of three runs. Reproduce with
+`node bench/run.mjs --dist dist/node --model <model> --corpus <file> --lines 2000`.
 
 ### Per-call vs batched
 
 | | time | throughput |
 |---|---:|---:|
-| `tokenize` per call | 121 ms | 2.8 M chars/s |
-| `tokenizeBatch` (one call) | 130 ms | 2.6 M chars/s |
-| `tokenizeToString` per call | 31 ms | 11.1 M chars/s |
+| `tokenize` per call | 106 ms | 3.2 M chars/s |
+| `tokenizeBatch` (one call) | 117 ms | 2.9 M chars/s |
+| `tokenizeToString` per call | 26 ms | 13.0 M chars/s |
 
 **`tokenizeBatch` is not faster.** The premise it was added under — that the
 UTF-16 to UTF-8 string copy at each call boundary dominates — does not hold
@@ -465,14 +482,15 @@ quarter of the time, so the input crossing is cheap; the cost is building
 An earlier implementation that took `Vec<String>` was measurably *worse* (0.75×)
 because wasm-bindgen materialized every input string in wasm memory up front.
 The current implementation pulls one string across at a time, which brings it to
-0.92–1.04× of per-call. It is kept for API compatibility and because it edges
-ahead when `predictTags` is on, but **reach for it only if you measure a win in
-your own workload.**
+0.86–0.93× of per-call, and 0.88–1.00× with `predictTags` on. It is kept for API
+compatibility; **reach for it only if you measure a win in your own workload.**
 
 ### Against python-vaporetto
 
-Same machine, same model, same input. python-vaporetto 0.6.5 (which also wraps
-vaporetto 0.6.5), with token fields materialized so both do equal work.
+Measured with Vaporetto 0.6.5 and its model, on an Apple M-series Mac with
+macOS 25.5 and Node 24.14.0; not re-run against Vaporetto 0.7.0. Same machine,
+same model, same input. python-vaporetto 0.6.5 (which also wraps vaporetto
+0.6.5), with token fields materialized so both do equal work.
 
 | | python-vaporetto | js-vaporetto | |
 |---|---:|---:|---|
@@ -490,16 +508,17 @@ a single string, is within 1.8×.
 
 Vaporetto's `charwise-pma` feature swaps in daachorse's charwise automaton.
 Upstream documents it as "faster prediction, although it can make loading a
-model file slower". Measured here (three runs, alternating order):
+model file slower". Measured here with the setup above (three runs, alternating
+order):
 
 | | wasm (`-Oz`) | model load | `tokenize` |
 |---|---:|---:|---:|
-| enabled | 343,698 B | 2,111–2,136 ms | 103–115 ms |
-| **disabled (default)** | **316,465 B** | **1,038–1,133 ms** | 112–120 ms |
+| enabled | 342,895 B | 1,861–1,870 ms | 90–99 ms |
+| **disabled (default)** | **323,048 B** | **816–868 ms** | 95–97 ms |
 
-It costs 8.6 % more wasm and roughly doubles model load time (+1,050 ms), for a
-tokenization gain of about 5–8 % — barely above run-to-run noise. Break-even is
-around 45 million characters of throughput per model load, which no browser
+It costs 6.1 % more wasm and more than doubles model load time (+1,045 ms), for
+a tokenization gain of at most 6 % — within run-to-run noise. Break-even is
+around 65 million characters of throughput per model load, which no browser
 session will reach, so **it is off by default**. Enable it with
 `--features charwise-pma` if you run a long-lived server that tokenizes far more
 than that per process.
@@ -574,7 +593,7 @@ Cargo features:
 | feature | default | effect |
 |---|---|---|
 | `zstd` | on | `fromCompressedModel`. Costs ~64 KB of wasm. |
-| `charwise-pma` | off | See [above](#charwise-pma). Costs ~27 KB. |
+| `charwise-pma` | off | See [above](#charwise-pma). Costs ~20 KB. |
 | `console_error_panic_hook` | off | Readable panic traces for debugging. Not for release builds. |
 
 Releasing is `./scripts/bump-version.sh X.Y.Z` (it moves the version in

@@ -103,7 +103,7 @@ export function createSuite({ Vaporetto, model, modelZst, vaporettoVersion, jsVa
     {
       name: "versions are exposed as plain strings",
       fn: (t) => {
-        t.eq(vaporettoVersion, "0.6.5");
+        t.eq(vaporettoVersion, "0.7.0");
         t.ok(/^\d+\.\d+\.\d+$/.test(jsVaporettoVersion), `js version looks like semver: ${jsVaporettoVersion}`);
       },
     },

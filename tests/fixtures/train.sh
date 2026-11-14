@@ -10,7 +10,7 @@ ROOT="$(cd "$FIXTURES/../.." && pwd)"
 WORK="$ROOT/tmp/vaporetto-train"
 
 # Pin to the revision the fixtures were generated with.
-VAPORETTO_REV="15baaa02514f1e1c2692eef0b163876b416fd90f"
+VAPORETTO_REV="0363844f2a22b2c3e377c1191e2e03d0d85ebcf2" # v0.7.0
 
 if [ ! -d "$WORK/.git" ]; then
   git clone https://github.com/daac-tools/vaporetto.git "$WORK"

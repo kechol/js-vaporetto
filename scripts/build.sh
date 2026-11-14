@@ -43,7 +43,7 @@ fi
 echo "wasm-opt: $("$WASM_OPT" --version)"
 
 JS_VERSION="$(grep -m1 '^version = ' Cargo.toml | cut -d'"' -f2)"
-VAPORETTO_VERSION="$(grep -m1 'version = "=0.6' Cargo.toml | cut -d'"' -f2 | tr -d '=')"
+VAPORETTO_VERSION="$(awk -F'"' '/^\[dependencies\.vaporetto\]/ { f = 1; next } /^\[/ { f = 0 } f && /^version = / { sub(/^=/, "", $2); print $2; exit }' Cargo.toml)"
 echo "js-vaporetto $JS_VERSION / vaporetto $VAPORETTO_VERSION"
 
 # --- build -------------------------------------------------------------------

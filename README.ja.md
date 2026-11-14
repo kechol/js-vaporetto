@@ -13,9 +13,10 @@ WebAssembly バインディング。ブラウザ・Node.js・Deno・Bun で動�
 > の命名慣習に倣ったものですが、本プロジェクトは独立して管理されており、Vaporetto の
 > 作者とは関係がありません。js-vaporetto の問題を上流リポジトリに報告しないでください。
 
-**Vaporetto 0.6.5** に対してビルドしています。crates.io の依存として使っており、上流の
+**Vaporetto 0.7.0** に対してビルドしています。crates.io の依存として使っており、上流の
 ソースはこのリポジトリに取り込んでいません。実際のバージョンは実行時に
-`VAPORETTO_VERSION` で取得できます。
+`VAPORETTO_VERSION` で取得できます。読み込めるのは Vaporetto 0.7 形式のモデルだけです。
+[モデルは同梱していません](#モデルは同梱していません) を参照してください。
 
 ```ts
 import { Vaporetto } from "js-vaporetto";
@@ -66,12 +67,13 @@ Vaporetto は点予測です。結果として **辞書が不要でモデルだ�
 
 ### なぜこれが存在するのか
 
-ブラウザやエッジではサイズが全てを決めます。2026-07-26 時点の実測値です。
+ブラウザやエッジではサイズが全てを決めます。js-vaporetto と Vaporetto の行は
+2026-11-14 に Vaporetto 0.7.0 で、Lindera の行は 2026-07-26 に計測した値です。
 
 | | サイズ |
 |---|---:|
-| js-vaporetto のエンジン（`dist/web` 1ターゲット） | **316 KB**（gzip 127 KB） |
-| 最小の Vaporetto モデル `bccwj-suw_c0.003` | **8.9 KB**（圧縮時） |
+| js-vaporetto のエンジン（`dist/web` 1ターゲット） | **323 KB**（gzip 128 KB） |
+| 最小の Vaporetto モデル `bccwj-suw_c0.003` | **4.1 KB**（圧縮時） |
 | 品詞・読みタグ付きモデル | 6.0 MB（圧縮時） |
 | `lindera-wasm-web-ipadic@2.0.0` 展開後 | 13.1 MB |
 | `lindera-wasm-web@4.0.1` 展開後（辞書は別） | 1.9 MB |
@@ -81,7 +83,7 @@ Lindera にも wasm ビルドはありますが、辞書が大きいため辞書
 Jagger は wasm 化の前例が見当たらず、パッケージレジストリではなく大学サイトから
 三重ライセンスで配布されています。
 
-エンジン + 最小モデルで js-vaporetto は約 325 KB、Lindera 相当の 40 分の 1 程度です。
+エンジン + 最小モデルで js-vaporetto は約 327 KB、Lindera 相当の 40 分の 1 程度です。
 **ブラウザで実用的に動く日本語トークナイザという枠では Vaporetto がほぼ唯一の選択肢**で、
 本プロジェクトはその穴を埋めるものです。
 
@@ -211,8 +213,9 @@ wasm-bindgen の同期初期化関数がそのまま受け取れる形です。�
   超えます。その場合は R2 や KV から実行時に取得し、バイト列を `fromModel` に渡してください。
 * **モデルの読み込み時間。** 56 MB の `bccwj-suw+unidic_pos+pron` を workerd で読み込むと
   1,231 ms かかりました（3 回計測の最小値、M シリーズ Mac の `wrangler dev --local`。
-  ローカル実行はデプロイ先のメモリ・CPU・サイズの制限を一切強制しないので、これは所要時間で
-  あって、そのサイズのモデルがデプロイできる証拠ではありません）。起動時の CPU 予算を
+  Vaporetto 0.6.5 とそのモデルでの計測値です。ローカル実行はデプロイ先のメモリ・CPU・
+  サイズの制限を一切強制しないので、これは所要時間であって、そのサイズのモデルが
+  デプロイできる証拠ではありません）。起動時の CPU 予算を
   はるかに超えるので、読み込みは `fetch()` の中で行い、トークナイザをモジュールスコープの
   変数に保持して同じ isolate の後続リクエストで使い回してください。トークナイズ自体は
   影響を受けません（同じ計測で 1,100 文字あたり 1 ms）。
@@ -241,7 +244,7 @@ await init(); // web ターゲットは wasm を非同期に初期化する
 const tokenizer = Vaporetto.fromModel(modelBytes);
 ```
 
-Vite は `.wasm` を通常のアセットとして出力し（316 KB、gzip 129 KB）、設定変更は要りません。
+Vite は `.wasm` を通常のアセットとして出力し（323 KB、gzip 128 KB）、設定変更は要りません。
 
 **または既定ターゲットのまま `vite-plugin-wasm` を入れる。**
 
@@ -285,18 +288,31 @@ import { Vaporetto } from "js-vaporetto/workers";  // ESM、import 時に初期�
 js-vaporetto は **モデルを一切含みません**。配布モデルはライセンス条項のあるコーパスから
 作られているため、ここでは再配布していません。
 
-[daac-tools/vaporetto-models](https://github.com/daac-tools/vaporetto-models/releases)
+[Vaporetto 0.7.0 のリリース](https://github.com/daac-tools/vaporetto/releases/tag/v0.7.0)
 から取得してください。
 
 | モデル | ダウンロード | 非圧縮 | タグ |
 |---|---:|---:|---|
-| `bccwj-suw+unidic_pos+pron` | 6.0 MB | 55.8 MB | 品詞 + 発音 |
-| `bccwj-suw+unidic_pos+kana` | 6.1 MB | — | 品詞 + カナ |
-| `bccwj-suw_c1.0` | 386 KB | — | なし |
-| `bccwj-suw_c0.003` | 8.7 KB | — | なし（最小） |
+| `bccwj-suw+unidic_pos+pron` | 6.0 MB | 56.8 MB | 品詞 + 発音 |
+| `bccwj-suw+unidic_pos+kana` | 6.0 MB | — | 品詞 + カナ |
+| `bccwj-suw_c1.0` | 378 KB | — | なし |
+| `bccwj-suw_c0.003` | 8.8 KB | — | なし（最小） |
 
 いずれも BCCWJ で訓練され BSD-3-Clause で配布されています。配布物に載せる前に、
-各アーカイブ内の `BSD` ファイルを確認してください。
+各アーカイブ内の `BSD` ファイルを確認してください。同じリリースには、話し言葉（CSJ）も
+使って訓練したモデルと、長単位のモデルもあります。
+
+Vaporetto 0.7 でモデルの形式が変わりました。Vaporetto 0.6 以前のモデルは
+`InvalidModelError: model version mismatch` で読み込めません。
+`daac-tools/vaporetto-models` のリリースは、すべてこの古い形式です。上の 0.7.0 のモデルを
+取得するか、手元のモデルを Vaporetto の `convert_bincode_model` で変換してください。
+
+```sh
+git clone --branch v0.7.0 https://github.com/daac-tools/vaporetto.git
+cd vaporetto
+cargo run --release -p convert_bincode_model -- \
+  --model-in old.model.zst --model-out new.model.zst
+```
 
 自分で訓練することもできます。このリポジトリの 1 KB のテストモデルをどう作ったかは
 [`tests/fixtures/README.md`](tests/fixtures/README.md) に書いてあります。
@@ -426,18 +442,19 @@ sqlite-vaporetto とは異なり、js-vaporetto は `SplitLinebreaksFilter` を*
 
 ## ベンチマーク
 
-Apple M シリーズ、macOS 25.5、Node 24.14.0。モデルは `bccwj-suw+unidic_pos+pron`
-（非圧縮 55.8 MB）、入力は『吾輩は猫である』（パブリックドメイン）から 2,000 行 /
-342,395 文字 / 224,724 トークン。3 回実行の最良値。
-`node bench/run.mjs --dist dist/node --model <model> --corpus <file>` で再現できます。
+Apple M4、macOS 26.7.1、Node 26.12.1、Vaporetto 0.7.0。モデルは Vaporetto 0.7.0 の
+リリースの `bccwj-suw+unidic_pos+pron`（非圧縮 56.8 MB）、入力は『吾輩は猫である』
+（パブリックドメイン）から 2,000 行 / 342,395 文字 / 224,724 トークン。3 回実行の最良値。
+`node bench/run.mjs --dist dist/node --model <model> --corpus <file> --lines 2000` で
+再現できます。
 
 ### 単発 vs バッチ
 
 | | 時間 | スループット |
 |---|---:|---:|
-| `tokenize` 単発 | 121 ms | 280 万 文字/s |
-| `tokenizeBatch`（1 回） | 130 ms | 260 万 文字/s |
-| `tokenizeToString` 単発 | 31 ms | 1,110 万 文字/s |
+| `tokenize` 単発 | 106 ms | 320 万 文字/s |
+| `tokenizeBatch`（1 回） | 117 ms | 290 万 文字/s |
+| `tokenizeToString` 単発 | 26 ms | 1,300 万 文字/s |
 
 **`tokenizeBatch` は速くなりません。** 導入の前提だった「呼び出しごとの UTF-16 → UTF-8
 変換とコピーが支配的」という想定は、ここでは成り立ちませんでした。`tokenizeToString` は
@@ -446,11 +463,13 @@ Apple M シリーズ、macOS 25.5、Node 24.14.0。モデルは `bccwj-suw+unidi
 
 `Vec<String>` を受け取る初期実装は明確に**悪化**していました（0.75 倍）。wasm-bindgen が
 全入力文字列を wasm メモリに先に確保してしまうためです。現在の実装は 1 件ずつ受け渡すので
-単発比 0.92〜1.04 倍まで戻っています。API 互換のため、また `predictTags` 有効時にはわずかに
-勝るため残していますが、**自分のワークロードで速くなることを計測してから使ってください。**
+単発比 0.86〜0.93 倍、`predictTags` 有効時は 0.88〜1.00 倍です。API 互換のために
+残していますが、**自分のワークロードで速くなることを計測してから使ってください。**
 
 ### python-vaporetto との比較
 
+Vaporetto 0.6.5 とそのモデルで、Apple M シリーズ・macOS 25.5・Node 24.14.0 の環境で
+計測した値です。Vaporetto 0.7.0 では計り直していません。
 同一マシン・同一モデル・同一入力。python-vaporetto 0.6.5（同じく vaporetto 0.6.5 を
 ラップ）。仕事量を揃えるため、python 側もトークンの各フィールドを実体化しています。
 
@@ -469,16 +488,16 @@ python-vaporetto は vaporetto の既定のままです。トークナイズ側�
 
 Vaporetto の `charwise-pma` feature は daachorse の charwise 版オートマトンに切り替えます。
 上流は「予測は速くなるがモデルファイルの読み込みは遅くなりうる」と説明しています。
-ここでの実測（順序を入れ替えて 3 回）は次のとおりです。
+上と同じ環境での実測（順序を入れ替えて 3 回）は次のとおりです。
 
 | | wasm（`-Oz`） | モデル読込 | `tokenize` |
 |---|---:|---:|---:|
-| 有効 | 343,698 B | 2,111–2,136 ms | 103–115 ms |
-| **無効（既定）** | **316,465 B** | **1,038–1,133 ms** | 112–120 ms |
+| 有効 | 342,895 B | 1,861–1,870 ms | 90–99 ms |
+| **無効（既定）** | **323,048 B** | **816–868 ms** | 95–97 ms |
 
-wasm が 8.6% 増え、モデル読込がおよそ 2 倍（+1,050 ms）になる一方、トークナイズの向上は
-5〜8% 程度で実行ごとのばらつきとほぼ同じ水準です。損益分岐はモデル 1 回の読み込みあたり
-約 4,500 万文字で、ブラウザのセッションでは到達しません。よって**既定では無効**です。
+wasm が 6.1% 増え、モデル読込が 2 倍強（+1,045 ms）になる一方、トークナイズの向上は
+最大 6% で実行ごとのばらつきの範囲に収まります。損益分岐はモデル 1 回の読み込みあたり
+約 6,500 万文字で、ブラウザのセッションでは到達しません。よって**既定では無効**です。
 1 プロセスでそれを大きく超える量を処理する常駐サーバでは、`--features charwise-pma` で
 有効にする価値があります。
 
@@ -552,7 +571,7 @@ Cargo feature:
 | feature | 既定 | 効果 |
 |---|---|---|
 | `zstd` | 有効 | `fromCompressedModel`。wasm が約 64 KB 増える |
-| `charwise-pma` | 無効 | [上記](#charwise-pma) 参照。約 27 KB 増える |
+| `charwise-pma` | 無効 | [上記](#charwise-pma) 参照。約 20 KB 増える |
 | `console_error_panic_hook` | 無効 | デバッグ用に panic のスタックトレースを読めるようにする。リリースビルド向けではない |
 
 リリースは `./scripts/bump-version.sh X.Y.Z`（`Cargo.toml` / `Cargo.lock` /

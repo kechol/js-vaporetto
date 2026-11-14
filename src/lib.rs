@@ -1,4 +1,4 @@
-//! js-vaporetto — unofficial WebAssembly bindings for Vaporetto 0.6.5.
+//! js-vaporetto — unofficial WebAssembly bindings for Vaporetto 0.7.0.
 //!
 //! Design notes, for the parts that are not obvious from the code:
 //!
