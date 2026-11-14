@@ -1,7 +1,8 @@
 """Compare js-vaporetto against the official python-vaporetto on identical input.
 
-Both wrap the same vaporetto 0.6.5 core, so this measures the cost of the
-binding layer, not of the tokenizer.
+Run it with a js-vaporetto build and a python-vaporetto that wrap the same
+vaporetto version, so it measures the cost of the binding layer, not of the
+tokenizer.
 """
 import json, pathlib, sys, time
 import vaporetto

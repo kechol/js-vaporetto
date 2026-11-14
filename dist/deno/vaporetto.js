@@ -10,5 +10,5 @@ if (typeof Symbol.dispose === "symbol") {
   Vaporetto.prototype[Symbol.dispose] = Vaporetto.prototype.free;
 }
 
-export const VAPORETTO_VERSION = "0.6.5";
+export const VAPORETTO_VERSION = "0.7.0";
 export const JS_VAPORETTO_VERSION = "0.2.0";

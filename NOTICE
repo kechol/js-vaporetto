@@ -30,7 +30,7 @@ https://github.com/daac-tools/vaporetto
 
     at your option.
 
-The crates `vaporetto` and `vaporetto_rules` (version 0.6.5) are used as
+The crates `vaporetto` and `vaporetto_rules` (version 0.7.0) are used as
 dependencies from crates.io. Their source is not vendored into this repository.
 
 

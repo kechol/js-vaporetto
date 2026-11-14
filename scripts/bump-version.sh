@@ -50,7 +50,7 @@ fi
 echo "bumping $OLD -> $NEW"
 
 # Cargo.toml: only the first `version = ` line, which is the [package] one.
-# The `version = "=0.6.5"` pins on vaporetto must not be touched. BSD sed has
+# The exact `version = "=…"` pins on vaporetto must not be touched. BSD sed has
 # no `0,/re/` address form, so do it in awk rather than with a portability
 # guess.
 awk -v new="$NEW" '

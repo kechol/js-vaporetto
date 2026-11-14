@@ -6,6 +6,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking:** built against Vaporetto 0.7.0 (`VAPORETTO_VERSION` is now
+  `"0.7.0"`). Vaporetto 0.7 changed the model format, so `fromModel` and
+  `fromCompressedModel` reject models for Vaporetto 0.6 and earlier, including
+  every release of `daac-tools/vaporetto-models`, with
+  `InvalidModelError: model version mismatch`. Use the models from the
+  [Vaporetto 0.7.0 release](https://github.com/daac-tools/vaporetto/releases/tag/v0.7.0),
+  or convert an existing one with Vaporetto's `convert_bincode_model`.
+- Model loading is about 12 % faster and tokenization 4–16 % faster than with
+  Vaporetto 0.6.5 on the benchmark in the README, and the segmentation and tags
+  of that corpus are unchanged. The engine grows from 317 KB to 322 KB.
+
 ## [0.2.0] - 2026-07-26
 
 ### Added

@@ -41,8 +41,8 @@ The trainer rejects empty lines, so the file must not end with a blank line.
 
 | file | bytes |
 |---|---:|
-| `tiny.model.zst` | 591 |
-| `tiny.model` | 1058 |
+| `tiny.model.zst` | 586 |
+| `tiny.model` | 1045 |
 
 `train` always writes zstd-compressed output (level 19, hardcoded). The
 uncompressed `tiny.model` is produced by decompressing it, and is what

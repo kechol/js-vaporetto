@@ -2,7 +2,7 @@
 name = "js-vaporetto"
 version = "0.2.0"
 edition = "2021"
-rust-version = "1.85"
+rust-version = "1.88"
 license = "MIT OR Apache-2.0"
 description = "Unofficial WebAssembly bindings for the Vaporetto Japanese tokenizer"
 repository = "https://github.com/kechol/js-vaporetto"
@@ -23,9 +23,10 @@ default = ["zstd"]
 # Enables fromCompressedModel. Decompression happens in Rust via ruzstd.
 zstd = ["dep:ruzstd"]
 # Uses daachorse's charwise automaton. Measured against
-# bccwj-suw+unidic_pos+pron over 342k characters, tokenization gets 5-8%
-# faster while model loading takes twice as long (+1,050 ms) and the wasm
-# grows 8.6%. Break-even is around 45 million characters per model load, so
+# bccwj-suw+unidic_pos+pron over 342k characters with Vaporetto 0.7.0,
+# tokenization gets at most 6% faster while model loading takes more than
+# twice as long (+1,045 ms) and the wasm grows 6.2%. Break-even is around
+# 65 million characters per model load, so
 # this is off by default; only worth enabling for a long-lived server process
 # that tokenizes far more than that.
 charwise-pma = ["vaporetto/charwise-pma"]
@@ -41,13 +42,13 @@ js-sys = "0.3.103"
 ruzstd = { version = "0.8", optional = true }
 console_error_panic_hook = { version = "0.1.7", optional = true }
 
-# The default features of vaporetto 0.6.5 are
+# The default features of vaporetto 0.7.0 are
 #   ["std", "cache-type-score", "fix-weight-length", "tag-prediction", "charwise-pma"]
 # This list is those minus charwise-pma (see the [features] section above) plus
 # kytea, which KyteaModel::read requires. Never enable train for wasm: it pulls
 # in liblinear, which builds C sources.
 [dependencies.vaporetto]
-version = "=0.6.5"
+version = "=0.7.0"
 default-features = false
 features = [
     "std",
@@ -58,7 +59,7 @@ features = [
 ]
 
 [dependencies.vaporetto_rules]
-version = "=0.6.5"
+version = "=0.7.0"
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.76"
