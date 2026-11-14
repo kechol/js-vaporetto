@@ -1,9 +1,9 @@
 name: CI
 
-# Third-party actions are pinned to a commit SHA, not a tag: a tag can be moved
-# to point at different code without the reference here changing. The comment
-# after each SHA is the release it corresponds to. To bump one, resolve the new
-# tag with `gh api repos/<owner>/<repo>/git/ref/tags/<tag>` and update both.
+# Actions are named by release tag. .github/workflows/actions.lock pins each
+# one, and every action it calls, to a commit that must stay reachable from that
+# tag; `gh actions-lock --verify` checks the workflows against it.
+# Dependabot moves a version and its locked commit together.
 
 on:
   push:
@@ -23,11 +23,11 @@ jobs:
     name: clippy + rustfmt
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v7.0.1
       # rust-toolchain.toml is the single source of truth for the Rust version;
       # `rustup show` installs whatever it pins, including components/targets.
       - run: rustup show
-      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2, at 2.9.1
+      - uses: Swatinem/rust-cache@v2.9.3
       - run: cargo fmt --check
       - run: cargo clippy --all-targets --all-features -- -D warnings
       # README.md and README.ja.md are translations of each other; catch a
@@ -42,9 +42,9 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v7.0.1
       - run: rustup show # installs the toolchain pinned in rust-toolchain.toml
-      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2, at 2.9.1
+      - uses: Swatinem/rust-cache@v2.9.3
 
       # bash is available on the Windows runner, so one script covers all three.
       # Putting tmp/bin on GITHUB_PATH once makes it visible to every later
@@ -70,7 +70,7 @@ jobs:
         shell: bash
         run: wasm-pack test --node
 
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@v7.0.1
         if: matrix.os == 'ubuntu-latest'
         with:
           name: dist
@@ -88,8 +88,8 @@ jobs:
         # library still runs there, and engines says >=20, so keep it honest.
         node: ["20", "22", "24"]
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.0.0
         with:
           node-version: ${{ matrix.node }}
       - run: npm ci --ignore-scripts
@@ -104,8 +104,8 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
+      - uses: actions/checkout@v7.0.1
+      - uses: denoland/setup-deno@v2.0.5
         with:
           deno-version: vx.x.x
       - run: deno test --allow-read tests/deno.test.ts
@@ -115,8 +115,8 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - uses: actions/checkout@v7.0.1
+      - uses: oven-sh/setup-bun@v2.2.0
         with:
           bun-version: latest
       - run: bun test tests/bun.test.ts
@@ -126,8 +126,8 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.0.0
         with:
           node-version: "24"
       # --ignore-scripts skips workerd's postinstall, which normally copies the
@@ -141,8 +141,8 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.0.0
         with:
           node-version: "24"
       - run: npm ci --ignore-scripts
@@ -154,11 +154,11 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.0.0
         with:
           node-version: "24"
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - uses: oven-sh/setup-bun@v2.2.0
 
       # `npm i github:kechol/js-vaporetto` is the documented install path, so
       # verify the packed tarball actually resolves and runs. npm pack respects
@@ -219,8 +219,8 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
+      - uses: actions/checkout@v7.0.1
+      - uses: denoland/setup-deno@v2.0.5
         with:
           deno-version: vx.x.x
 
@@ -254,9 +254,9 @@ jobs:
     name: fixtures are reproducible
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v7.0.1
       - run: rustup show # installs the toolchain pinned in rust-toolchain.toml
-      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2, at 2.9.1
+      - uses: Swatinem/rust-cache@v2.9.3
       - run: pip install zstandard
 
       # The model bytes are not reproducible across vaporetto revisions (tag
