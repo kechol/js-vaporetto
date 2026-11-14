@@ -6,13 +6,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-14
+
 ### Changed
 
 - **Breaking:** built against Vaporetto 0.7.0 (`VAPORETTO_VERSION` is now
   `"0.7.0"`). Vaporetto 0.7 changed the model format, so `fromModel` and
   `fromCompressedModel` reject models for Vaporetto 0.6 and earlier, including
   every release of `daac-tools/vaporetto-models`, with
-  `InvalidModelError: model version mismatch`. Use the models from the
+  `InvalidModelError: model version mismatch`. Migration: use the models
+  from the
   [Vaporetto 0.7.0 release](https://github.com/daac-tools/vaporetto/releases/tag/v0.7.0),
   or convert an existing one with Vaporetto's `convert_bincode_model`.
 - Model loading is about 12 % faster and tokenization 4–16 % faster than with
@@ -117,6 +120,7 @@ Initial release.
   rather than a descriptive error. It is catchable and the module stays
   usable, but model files should be treated as trusted input.
 
-[Unreleased]: https://github.com/kechol/js-vaporetto/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/kechol/js-vaporetto/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/kechol/js-vaporetto/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/kechol/js-vaporetto/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/kechol/js-vaporetto/releases/tag/v0.1.0

@@ -11,4 +11,4 @@ if (typeof Symbol.dispose === "symbol") {
 
 exports.Vaporetto = Vaporetto;
 exports.VAPORETTO_VERSION = "0.7.0";
-exports.JS_VAPORETTO_VERSION = "0.2.0";
+exports.JS_VAPORETTO_VERSION = "0.3.0";

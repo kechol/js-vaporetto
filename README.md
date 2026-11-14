@@ -127,9 +127,9 @@ directly from a tagged raw URL.
 ### Node.js / Bun
 
 ```sh
-npm i github:kechol/js-vaporetto#v0.2.0
+npm i github:kechol/js-vaporetto#v0.3.0
 # or
-bun add github:kechol/js-vaporetto#v0.2.0
+bun add github:kechol/js-vaporetto#v0.3.0
 ```
 
 ```js
@@ -144,7 +144,7 @@ tokenizer.free();
 ### Deno
 
 ```ts
-import { Vaporetto } from "https://raw.githubusercontent.com/kechol/js-vaporetto/v0.2.0/dist/deno/vaporetto.js";
+import { Vaporetto } from "https://raw.githubusercontent.com/kechol/js-vaporetto/v0.3.0/dist/deno/vaporetto.js";
 
 const model = await Deno.readFile("./bccwj-suw+unidic_pos+pron.model");
 using tokenizer = Vaporetto.fromModel(model); // Deno 2 supports `using`
@@ -163,7 +163,7 @@ fetches the `.wasm` over the network at module load, and that needs `--allow-net
 
 ```html
 <script type="module">
-  import init, { Vaporetto } from "https://raw.githubusercontent.com/kechol/js-vaporetto/v0.2.0/dist/web/vaporetto.js";
+  import init, { Vaporetto } from "https://raw.githubusercontent.com/kechol/js-vaporetto/v0.3.0/dist/web/vaporetto.js";
 
   await init(); // required: the web target initializes the wasm module asynchronously
   const model = new Uint8Array(await (await fetch("/model.zst")).arrayBuffer());
