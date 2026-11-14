@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `fromCompressedModel` decompresses with ruzstd 0.9.1, which refuses
+  zstd blocks that would decode to more bytes than a block allows instead
+  of running out of memory, and accepts frames with windows up to 128 MiB.
+
 ## [0.2.0] - 2026-07-26
 
 ### Added
