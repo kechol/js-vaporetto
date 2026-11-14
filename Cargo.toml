@@ -47,7 +47,7 @@ console_error_panic_hook = { version = "0.1.7", optional = true }
 # kytea, which KyteaModel::read requires. Never enable train for wasm: it pulls
 # in liblinear, which builds C sources.
 [dependencies.vaporetto]
-version = "=0.6.5"
+version = "=0.7.0"
 default-features = false
 features = [
     "std",
