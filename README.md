@@ -75,7 +75,7 @@ rows on 2026-07-26:
 
 | | size |
 |---|---:|
-| js-vaporetto engine (`dist/web`, one target) | **322 KB** (128 KB gzipped) |
+| js-vaporetto engine (`dist/web`, one target) | **323 KB** (128 KB gzipped) |
 | smallest Vaporetto model, `bccwj-suw_c0.003` | **4.1 KB** compressed |
 | Vaporetto model with POS + reading tags | 6.0 MB compressed |
 | `lindera-wasm-web-ipadic@2.0.0`, unpacked | 13.1 MB |
@@ -87,7 +87,7 @@ run to hundreds of megabytes. Jagger has no wasm precedent that we could find
 and is distributed under a triple licence from a university site rather than a
 package registry.
 
-Engine plus smallest model, js-vaporetto is around 326 KB — roughly a fortieth
+Engine plus smallest model, js-vaporetto is around 327 KB — roughly a fortieth
 of the Lindera equivalent. **For a Japanese tokenizer that actually runs in a
 browser, Vaporetto is close to the only practical option**, and that is the gap
 this project fills.
@@ -252,7 +252,7 @@ await init(); // the web target initializes the wasm module asynchronously
 const tokenizer = Vaporetto.fromModel(modelBytes);
 ```
 
-Vite emits the `.wasm` as a normal asset (322 KB, 128 KB gzipped) and no config
+Vite emits the `.wasm` as a normal asset (323 KB, 128 KB gzipped) and no config
 change is needed.
 
 **Or keep the default target and add `vite-plugin-wasm`.**
@@ -513,10 +513,10 @@ order):
 
 | | wasm (`-Oz`) | model load | `tokenize` |
 |---|---:|---:|---:|
-| enabled | 341,801 B | 1,861–1,870 ms | 90–99 ms |
-| **disabled (default)** | **321,949 B** | **816–868 ms** | 95–97 ms |
+| enabled | 342,895 B | 1,861–1,870 ms | 90–99 ms |
+| **disabled (default)** | **323,048 B** | **816–868 ms** | 95–97 ms |
 
-It costs 6.2 % more wasm and more than doubles model load time (+1,045 ms), for
+It costs 6.1 % more wasm and more than doubles model load time (+1,045 ms), for
 a tokenization gain of at most 6 % — within run-to-run noise. Break-even is
 around 65 million characters of throughput per model load, which no browser
 session will reach, so **it is off by default**. Enable it with

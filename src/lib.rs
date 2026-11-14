@@ -279,7 +279,7 @@ impl Vaporetto {
 
         init_panic_hook();
         let options = Options::from_js(options.map(Into::into))?;
-        // ruzstd 0.8 has no free function like decode_all; use the same
+        // ruzstd 0.9 has no free function like decode_all; use the same
         // StreamingDecoder that sqlite-vaporetto's load_model_from_bytes() does.
         let decoder = ruzstd::decoding::StreamingDecoder::new(model).map_err(to_js_error)?;
         // zstd match runs can legitimately expand a few KB to gigabytes, and
